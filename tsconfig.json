@@ -22,8 +22,8 @@
 
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["legacy/src/*"]
     }
   },
-  "include": ["src"]
+  "include": ["legacy/src", "legacy/vite.config.ts"]
 }
