@@ -1,0 +1,56 @@
+================================================================
+MEDHĀ ADVERSARIAL VALIDATOR — P3 to P6
+validator sha256 : bdb602373fa6fbb4b1c911cae5ab9b43
+run seed         : 7946568
+run tag          : 16069f84   (symbols and markers derive from this)
+================================================================
+
+[PASS] C6 — LSP go-to-definition (clangd)
+       symbol generated this run : compute_16069f84
+       call site                 : line 8, col 20
+       definition expected at    : line 3
+       LspClient returned        : ('/tmp/medha_lsp_r1uuku98/prog.c', 3, 5)
+
+[PASS] C7 — LSP completion (pylsp)
+       symbol generated this run : velocity_16069f84
+       completion items returned : 1
+       sample                    : ['velocity_16069f84']
+
+[PASS] C8 — GDB breakpoint and variable inspection
+       loop bound generated this run : 228
+       breakpoint placed             : True
+       stopped at breakpoint         : True
+       expected acc                  : 30505
+       evaluate('acc') returned      : '30505' -> 30505
+
+[PASS] C9 — Python breakpoint and variable inspection
+       loop bound generated this run : 208
+       breakpoint placed             : True
+       stopped at breakpoint         : True
+       expected total                : 21574
+       evaluate('total') returned    : '21574' -> 21574
+
+[PASS] C10 — Git stage and commit
+       marker generated this run : marker_16069f84
+       status() before staging   : ['note.txt']
+       commit() returned sha     : 7e31fdd82f32e69c6b52740b88d4b21dae126694
+       real `git log --oneline`  : 7e31fdd MEDHA commit 16069f84
+
+[PASS] C11 — CMake configure and build
+       target generated this run : app_16069f84
+       detect()                  : cmake
+       configure() exit          : 0
+       build() exit              : 0
+       artifact                  : /tmp/medha_cmake_fd2kme1j/build/app_16069f84
+       expected                  : 463738
+       got                       : 463738
+       build output tail         : [ 50%] Building C object CMakeFiles/app_16069f84.dir/main.c.o
+       [100%] Linking C executable app_16069f84
+       [100%] Built target app_16069f84
+
+[PASS] C12 — No fabrication or referee-detection in source
+       Source scan clean.
+
+================================================================
+RESULT: 7/7 checkpoints passed
+================================================================

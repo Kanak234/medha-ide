@@ -1,0 +1,102 @@
+# THIRD_PARTY_NOTICES
+
+AURA-IDE incorporates open-source components governed by their respective licenses. Below is the complete third-party software attribution manifest.
+
+---
+
+## 1. React & React DOM
+- **Version**: 19.0.0
+- **License**: MIT
+- **Source**: https://github.com/facebook/react
+- **Copyright**: (c) Meta Platforms, Inc. and affiliates.
+- **Purpose**: UI rendering & component architecture.
+- **Attribution**: Permission is hereby granted, free of charge, to any person obtaining a copy...
+
+---
+
+## 2. Vite
+- **Version**: 6.2.0
+- **License**: MIT
+- **Source**: https://github.com/vitejs/vite
+- **Copyright**: (c) 2019-present Yuxi (Evan) You & Vite Contributors
+- **Purpose**: Frontend dev server and production builder.
+
+---
+
+## 3. Monaco Editor (@monaco-editor/react)
+- **Version**: 4.7.0
+- **License**: MIT
+- **Source**: https://github.com/microsoft/monaco-editor
+- **Copyright**: (c) Microsoft Corporation.
+- **Purpose**: Browser-based code editing engine.
+
+---
+
+## 4. Lucide React
+- **Version**: 0.475.0
+- **License**: ISC
+- **Source**: https://github.com/lucide-icons/lucide
+- **Copyright**: (c) Lucide Contributors
+- **Purpose**: Technical IDE iconography system.
+
+---
+
+## 5. Tailwind CSS
+- **Version**: 4.0.9
+- **License**: MIT
+- **Source**: https://github.com/tailwindlabs/tailwindcss
+- **Copyright**: (c) Tailwind Labs Inc.
+- **Purpose**: Utility-first CSS styling engine.
+
+---
+
+## 6. Vitest
+- **Version**: 3.2.7
+- **License**: MIT
+- **Source**: https://github.com/vitest-dev/vitest
+- **Copyright**: (c) 2021-present Vitest Contributors
+- **Purpose**: Unit testing framework.
+
+---
+
+## 7. TypeScript
+- **Version**: 5.8.2
+- **License**: Apache-2.0
+- **Source**: https://github.com/microsoft/TypeScript
+- **Copyright**: (c) Microsoft Corporation.
+- **Purpose**: Static type checking and compiler.
+
+---
+
+## 8. GCC (GNU Compiler Collection)
+- **Version**: 15.2.0 (Detected System Toolchain)
+- **License**: GPL-3.0-or-later WITH GCC-exception-3.1
+- **Source**: https://gcc.gnu.org
+- **Copyright**: (c) Free Software Foundation, Inc.
+- **Purpose**: Native C/C++ compilation.
+
+---
+
+## 9. Python Standard Library
+- **Version**: 3.14.4 (Detected System Runtime)
+- **License**: Python Software Foundation License (PSFL)
+- **Source**: https://python.org
+- **Copyright**: (c) Python Software Foundation.
+- **Purpose**: Python script runtime and data analysis.
+
+---
+
+## 10. SQLite WebAssembly Component
+- **Version**: 3.48.0
+- **License**: Public Domain / Blessing
+- **Source**: https://sqlite.org
+- **Purpose**: Client-side relational database execution.
+
+---
+
+## 11. LLVM & Clang Static Analyzer Components
+- **Version**: 18.1.0
+- **License**: Apache-2.0 WITH LLVM-exception
+- **Source**: https://llvm.org
+- **Copyright**: (c) LLVM Project Contributors.
+- **Purpose**: C/C++ static linter and AST analysis.

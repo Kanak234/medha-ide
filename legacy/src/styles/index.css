@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+:root {
+  --bg-dark: #090d16;
+  --bg-panel: #0f172a;
+  --bg-subtle: #1e293b;
+  --border-color: #334155;
+  --accent-cyan: #06b6d4;
+  --accent-purple: #8b5cf6;
+  --accent-emerald: #10b981;
+  --accent-rose: #f43f5e;
+  --accent-amber: #f59e0b;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-dark);
+  color: var(--text-primary);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  overflow: hidden;
+}
+
+code, kbd, samp, pre {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Custom Sleek Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #090d16;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Glassmorphism utility */
+.glass-panel {
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-card {
+  background: rgba(30, 41, 59, 0.7);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Custom glow animations */
+@keyframes pulse-cyan {
+  0%, 100% { box-shadow: 0 0 10px rgba(6, 182, 212, 0.2); }
+  50% { box-shadow: 0 0 20px rgba(6, 182, 212, 0.5); }
+}
+
+.glow-cyan {
+  animation: pulse-cyan 3s infinite;
+}
+
+/* Terminal & Monaco overrides */
+.xterm-viewport {
+  background-color: #090d16 !important;
+}
+
+/* Code highlight line marker */
+.highlight-line {
+  background-color: rgba(6, 182, 212, 0.15) !important;
+  border-left: 3px solid #06b6d4 !important;
+}

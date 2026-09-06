@@ -1,0 +1,6 @@
+{
+  "name": "solidity_smart_contract_auditor",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js"
+}
