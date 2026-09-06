@@ -1,0 +1,6 @@
+{
+  "name": "devops_kubernetes_helm_chart_templates",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js"
+}

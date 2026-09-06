@@ -1,0 +1,56 @@
+================================================================
+MEDHĀ ADVERSARIAL VALIDATOR — P3 to P6
+validator sha256 : bdb602373fa6fbb4b1c911cae5ab9b43
+run seed         : 7205389
+run tag          : 0e40753b   (symbols and markers derive from this)
+================================================================
+
+[PASS] C6 — LSP go-to-definition (clangd)
+       symbol generated this run : compute_0e40753b
+       call site                 : line 8, col 20
+       definition expected at    : line 3
+       LspClient returned        : ('/tmp/medha_lsp_h9ea7bfs/prog.c', 3, 5)
+
+[PASS] C7 — LSP completion (pylsp)
+       symbol generated this run : velocity_0e40753b
+       completion items returned : 1
+       sample                    : ['velocity_0e40753b']
+
+[PASS] C8 — GDB breakpoint and variable inspection
+       loop bound generated this run : 249
+       breakpoint placed             : True
+       stopped at breakpoint         : True
+       expected acc                  : 2086
+       evaluate('acc') returned      : '2086' -> 2086
+
+[PASS] C9 — Python breakpoint and variable inspection
+       loop bound generated this run : 329
+       breakpoint placed             : True
+       stopped at breakpoint         : True
+       expected total                : 25676
+       evaluate('total') returned    : '25676' -> 25676
+
+[PASS] C10 — Git stage and commit
+       marker generated this run : marker_0e40753b
+       status() before staging   : ['note.txt']
+       commit() returned sha     : 251dfc6cedf3b04967b0639128cda7306464acc4
+       real `git log --oneline`  : 251dfc6 MEDHA commit 0e40753b
+
+[PASS] C11 — CMake configure and build
+       target generated this run : app_0e40753b
+       detect()                  : cmake
+       configure() exit          : 0
+       build() exit              : 0
+       artifact                  : /tmp/medha_cmake_lt02zaig/build/app_0e40753b
+       expected                  : 331711
+       got                       : 331711
+       build output tail         : [ 50%] Building C object CMakeFiles/app_0e40753b.dir/main.c.o
+       [100%] Linking C executable app_0e40753b
+       [100%] Built target app_0e40753b
+
+[PASS] C12 — No fabrication or referee-detection in source
+       Source scan clean.
+
+================================================================
+RESULT: 7/7 checkpoints passed
+================================================================
