@@ -1,0 +1,29 @@
+name: CI
+
+# This workflow performs a dependency-free syntax validation of the IDE's Python
+# source tree. It is intentionally non-invasive: it does not launch Qt, execute
+# user workspaces, install system toolchains, or modify project files.
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  validate-python:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      # compileall parses Python files without importing application dependencies.
+      # This catches syntax errors while avoiding machine-specific Qt/toolchain setup.
+      - name: Validate Python syntax
+        run: python3 -m compileall -q medha main.py build_packages.py
+
+      # Verify that the documented package entry point remains syntactically valid.
+      - name: Validate package entry point
+        run: python3 -m py_compile medha/__main__.py
