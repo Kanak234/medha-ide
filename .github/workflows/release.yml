@@ -14,13 +14,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-python@v5
         with:
-          node-version: "20"
+          python-version: "3.12"
+
+      # The application is the Python package medha/, run with
+      # `python3 -m medha`. This job used to run `npm ci && npm run build`
+      # first, which could never succeed: package.json's build is
+      # `tsc && vite build`, and neither index.html nor vite.config.ts is at
+      # the repository root -- both live in legacy/, where the superseded web
+      # front-end was moved. vite exited with
+      # "Could not resolve entry module index.html" every time.
+      #
+      # It also made no difference to the artifact. The tar below archives the
+      # source tree and excludes node_modules, so nothing the build produced
+      # was ever shipped. Pointing the build at legacy/ instead would have
+      # revived a retired app to feed a step whose output is discarded, so the
+      # step is removed rather than repaired.
+      - name: Validate the package before releasing
+        run: |
+          python3 -m compileall -q medha
+          python3 -m py_compile medha/__main__.py build_packages.py
+
       - name: Build Production Bundle
         run: |
-          npm ci || npm install
-          npm run build
           tar -czf release-bundle.tar.gz --exclude='.git' --exclude='node_modules' .
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
