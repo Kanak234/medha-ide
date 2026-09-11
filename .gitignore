@@ -19,3 +19,4 @@ release/
 .coverage
 .pytest_cache/
 .claude/
+*.egg-info/
