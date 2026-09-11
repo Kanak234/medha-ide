@@ -4,6 +4,7 @@ import re
 import json
 import time
 import socket
+import select
 import shutil
 import subprocess
 
@@ -21,7 +22,15 @@ class DebugSession:
     def start(self) -> None:
         if self.kind == "gdb":
             gdb_path = shutil.which("gdb") or "/usr/bin/gdb"
-            cmd = [gdb_path, "--interpreter=mi2", self.target]
+            cmd = [
+                gdb_path,
+                "--interpreter=mi2",
+                "-nx",
+                "-nh",
+                "-ex", "set debuginfod enabled off",
+                "-ex", "set pagination off",
+                self.target
+            ]
             self.proc = subprocess.Popen(
                 cmd,
                 stdin=subprocess.PIPE,
@@ -77,6 +86,9 @@ class DebugSession:
         while time.time() - start_time < timeout:
             if not self.proc or self.proc.poll() is not None:
                 break
+            r, _, _ = select.select([self.proc.stdout], [], [], 0.1)
+            if not r:
+                continue
             line = self.proc.stdout.readline()
             if not line:
                 time.sleep(0.02)
@@ -104,6 +116,8 @@ class DebugSession:
         start_time = time.time()
         buf = b""
         res_dict = {}
+        if self.sock:
+            self.sock.settimeout(0.5)
         while time.time() - start_time < timeout:
             try:
                 chunk = self.sock.recv(4096)
@@ -132,6 +146,8 @@ class DebugSession:
                             return msg
                     else:
                         break
+            except socket.timeout:
+                continue
             except Exception:
                 break
         return res_dict
@@ -165,6 +181,9 @@ class DebugSession:
             while time.time() - start_time < timeout:
                 if not self.proc or self.proc.poll() is not None:
                     break
+                r, _, _ = select.select([self.proc.stdout], [], [], 0.1)
+                if not r:
+                    continue
                 line = self.proc.stdout.readline()
                 if not line:
                     time.sleep(0.05)

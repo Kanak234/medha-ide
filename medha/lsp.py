@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import time
+import select
 import shutil
 import subprocess
 from pathlib import Path
@@ -20,8 +21,11 @@ class LspClient:
             clangd_path = shutil.which("clangd") or "/home/kanak/.local/bin/clangd"
             cmd = [clangd_path, "--background-index"]
         elif self.language in ["python", "py"]:
-            pylsp_path = shutil.which("pylsp") or shutil.which("pylsp-server") or "pylsp"
-            cmd = [pylsp_path]
+            pylsp_path = shutil.which("pylsp") or shutil.which("pylsp-server")
+            if pylsp_path:
+                cmd = [pylsp_path]
+            else:
+                cmd = [sys.executable, "-m", "pylsp"]
         else:
             cmd = ["clangd"]
 

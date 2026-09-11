@@ -48,12 +48,14 @@ jobs:
           pytest --cov --cov-fail-under=80
 
       - name: Run verification harness (P3 to P6)
+        timeout-minutes: 5
         run: |
-          python3 verify_medha_p3_p6.py
+          python3 -u verify_medha_p3_p6.py
 
       - name: Run DSA visualizer verification
+        timeout-minutes: 5
         run: |
-          python3 verify_dsa_visualizer.py
+          python3 -u verify_dsa_visualizer.py
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
