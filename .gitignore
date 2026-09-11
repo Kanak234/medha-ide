@@ -20,3 +20,4 @@ release/
 .pytest_cache/
 .claude/
 *.egg-info/
+build_out/
