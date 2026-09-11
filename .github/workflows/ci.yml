@@ -26,7 +26,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            gcc g++ gdb git cmake make \
+            gcc g++ gdb git cmake make clangd \
             libgl1 libegl1 libxkbcommon-x11-0 libfontconfig1 libdbus-1-3
 
       - name: Install Python dependencies
