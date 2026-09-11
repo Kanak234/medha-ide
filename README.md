@@ -1,4 +1,10 @@
 # MEDHĀ IDE — मेधा IDE
+
+[![CI](https://github.com/Kanak234/medha-ide/actions/workflows/ci.yml/badge.svg)](https://github.com/Kanak234/medha-ide/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/Kanak234/medha-ide/actions/workflows/codeql.yml/badge.svg)](https://github.com/Kanak234/medha-ide/actions/workflows/codeql.yml)
+[![Coverage](https://img.shields.io/badge/coverage-90.3%25-brightgreen.svg)](https://github.com/Kanak234/medha-ide)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 > **Autonomous Offline AI-Powered Development Environment**
 
 ---

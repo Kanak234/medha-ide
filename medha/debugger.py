@@ -4,6 +4,7 @@ import re
 import json
 import time
 import socket
+import select
 import shutil
 import subprocess
 
@@ -17,11 +18,21 @@ class DebugSession:
         self.stopped_thread_id = 1
         self.frame_id = None
         self.req_seq = 0
+        self.dap_buf = b""
+        self.dap_queue = []
 
     def start(self) -> None:
         if self.kind == "gdb":
             gdb_path = shutil.which("gdb") or "/usr/bin/gdb"
-            cmd = [gdb_path, "--interpreter=mi2", self.target]
+            cmd = [
+                gdb_path,
+                "--interpreter=mi2",
+                "-nx",
+                "-nh",
+                "-ex", "set debuginfod enabled off",
+                "-ex", "set pagination off",
+                self.target
+            ]
             self.proc = subprocess.Popen(
                 cmd,
                 stdin=subprocess.PIPE,
@@ -77,6 +88,9 @@ class DebugSession:
         while time.time() - start_time < timeout:
             if not self.proc or self.proc.poll() is not None:
                 break
+            r, _, _ = select.select([self.proc.stdout], [], [], 0.1)
+            if not r:
+                continue
             line = self.proc.stdout.readline()
             if not line:
                 time.sleep(0.02)
@@ -100,41 +114,66 @@ class DebugSession:
         self.sock.sendall(header + data)
         return self.req_seq
 
+    def _parse_dap_buffer(self) -> None:
+        while b"Content-Length:" in self.dap_buf:
+            if b"\r\n\r\n" not in self.dap_buf:
+                break
+            header_part, rest = self.dap_buf.split(b"\r\n\r\n", 1)
+            header_lines = header_part.decode("ascii", errors="replace").split("\r\n")
+            length = 0
+            for h in header_lines:
+                if h.startswith("Content-Length:"):
+                    try:
+                        length = int(h.split(":")[1].strip())
+                    except ValueError:
+                        pass
+            if len(rest) >= length:
+                body = rest[:length]
+                self.dap_buf = rest[length:]
+                try:
+                    msg = json.loads(body.decode("utf-8"))
+                    if msg.get("event") == "stopped":
+                        self.stopped = True
+                        self.stopped_thread_id = msg.get("body", {}).get("threadId", 1)
+                    self.dap_queue.append(msg)
+                except Exception:
+                    pass
+            else:
+                break
+
     def read_dap_response(self, target_seq: int = None, timeout: float = 10.0) -> dict:
         start_time = time.time()
-        buf = b""
-        res_dict = {}
+        if self.sock:
+            self.sock.settimeout(0.5)
         while time.time() - start_time < timeout:
+            self._parse_dap_buffer()
+            if target_seq is not None:
+                for idx, msg in enumerate(self.dap_queue):
+                    if msg.get("request_seq") == target_seq:
+                        return self.dap_queue.pop(idx)
+            else:
+                if self.dap_queue:
+                    return self.dap_queue.pop(0)
+
             try:
                 chunk = self.sock.recv(4096)
-                if not chunk:
-                    time.sleep(0.05)
-                    continue
-                buf += chunk
-                while b"Content-Length:" in buf:
-                    header_part, rest = buf.split(b"\r\n\r\n", 1)
-                    header_lines = header_part.decode("ascii").split("\r\n")
-                    length = 0
-                    for h in header_lines:
-                        if h.startswith("Content-Length:"):
-                            length = int(h.split(":")[1].strip())
-                    if len(rest) >= length:
-                        body = rest[:length]
-                        buf = rest[length:]
-                        msg = json.loads(body.decode("utf-8"))
-                        if msg.get("event") == "stopped":
-                            self.stopped = True
-                            self.stopped_thread_id = msg.get("body", {}).get("threadId", 1)
-                        if target_seq is not None and msg.get("request_seq") == target_seq:
-                            res_dict = msg
-                            return res_dict
-                        elif target_seq is None and msg.get("type") in ["response", "event"]:
-                            return msg
-                    else:
-                        break
+                if chunk:
+                    self.dap_buf += chunk
+                else:
+                    time.sleep(0.02)
+            except socket.timeout:
+                continue
             except Exception:
                 break
-        return res_dict
+
+        self._parse_dap_buffer()
+        if target_seq is not None:
+            for idx, msg in enumerate(self.dap_queue):
+                if msg.get("request_seq") == target_seq:
+                    return self.dap_queue.pop(idx)
+        elif self.dap_queue:
+            return self.dap_queue.pop(0)
+        return {}
 
     def set_breakpoint(self, file_path: str, line: int) -> bool:
         if self.kind == "gdb":
@@ -165,6 +204,9 @@ class DebugSession:
             while time.time() - start_time < timeout:
                 if not self.proc or self.proc.poll() is not None:
                     break
+                r, _, _ = select.select([self.proc.stdout], [], [], 0.1)
+                if not r:
+                    continue
                 line = self.proc.stdout.readline()
                 if not line:
                     time.sleep(0.05)

@@ -16,3 +16,8 @@ build/
 *.pt
 *.safetensors
 release/
+.coverage
+.pytest_cache/
+.claude/
+*.egg-info/
+build_out/
