@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "medha-ide"
+version = "1.0.0"
+description = "MEDHĀ IDE — Standalone Native Desktop C/C++/Python/Java Development Suite"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "PySide6>=6.5.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-v"
+
+[tool.coverage.run]
+include = [
+    "medha/build.py",
+    "medha/git_backend.py",
+    "medha/core/workspace.py",
+    "medha/compiler_engine.py",
+    "medha/theme.py",
+    "medha/problems.py",
+    "medha/analyzers/linter.py",
+]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
