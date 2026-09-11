@@ -32,8 +32,11 @@ def run_standalone_dsa_verification():
     print("MEDHĀ IDE — UNIVERSAL DSA VISUALIZER VERIFICATION")
     print("=" * 65)
 
-    if not os.environ.get("QT_QPA_PLATFORM") and (os.environ.get("WAYLAND_DISPLAY") or os.environ.get("DISPLAY")):
-        os.environ["QT_QPA_PLATFORM"] = "xcb"
+    if not os.environ.get("QT_QPA_PLATFORM"):
+        if os.environ.get("WAYLAND_DISPLAY") or os.environ.get("DISPLAY"):
+            os.environ["QT_QPA_PLATFORM"] = "xcb"
+        else:
+            os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
     app = QApplication.instance() or QApplication(sys.argv)
 
