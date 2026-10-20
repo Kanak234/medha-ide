@@ -79,7 +79,7 @@ Categories=Development;IDE;
 Version: 1.0.0
 Architecture: amd64
 Maintainer: Kanak Prabhakar <kanak@local>
-Depends: gcc, g++, gdb, git, cmake, make
+Depends: gcc, g++, gdb, git, cmake, make, python3 (>= 3.10), python3-pyside6, python3-psutil, python3-requests
 Section: devel
 Priority: optional
 Description: MEDHĀ IDE — Standalone Native Desktop IDE Suite

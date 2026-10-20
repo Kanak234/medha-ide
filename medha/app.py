@@ -23,6 +23,7 @@ from medha.compiler.disassembly import DisassemblyInspectorWidget
 from medha.core.workspace import HybridWorkspaceController
 from medha.dsa_visualizer.dsa_widget import DSAVisualizerWidget
 from medha.dsa_visualizer.tracers.dsa_tracer import UniversalDSATracer
+from medha.extensions.ui.panel import ExtensionsPanel
 
 
 class MedhaMainWindow(QMainWindow):
@@ -153,12 +154,20 @@ class MedhaMainWindow(QMainWindow):
         self.dock_ai.setWidget(self.ai_panel)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.dock_ai)
 
+        # Extensions Panel (Right Dock) - P8 Extensions
+        self.extensions_panel = ExtensionsPanel(self)
+        self.extensions_panel.theme_apply_requested.connect(self._on_theme_apply_requested)
+        self.dock_extensions = QDockWidget("Extensions", self)
+        self.dock_extensions.setWidget(self.extensions_panel)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.dock_extensions)
+
         # Tabify right dock widgets for clean UI
         self.tabifyDockWidget(self.dock_dsa, self.dock_memory)
         self.tabifyDockWidget(self.dock_memory, self.dock_asm)
         self.tabifyDockWidget(self.dock_asm, self.dock_gdb)
         self.tabifyDockWidget(self.dock_gdb, self.dock_outline)
         self.tabifyDockWidget(self.dock_outline, self.dock_ai)
+        self.tabifyDockWidget(self.dock_ai, self.dock_extensions)
 
         # Dock Fade-in Animations
         self.setup_dock_fade_in(self.dock_explorer)
@@ -281,6 +290,14 @@ class MedhaMainWindow(QMainWindow):
         view_menu.addAction(self.dock_asm.toggleViewAction())
         view_menu.addAction(self.dock_gdb.toggleViewAction())
         view_menu.addAction(self.dock_outline.toggleViewAction())
+        view_menu.addAction(self.dock_ai.toggleViewAction())
+        view_menu.addAction(self.dock_extensions.toggleViewAction())
+
+        # Extensions shortcut
+        act_extensions = QAction("Extensions", self)
+        act_extensions.setShortcut(QKeySequence("Ctrl+Shift+X"))
+        act_extensions.triggered.connect(self.dock_extensions.toggleViewAction().trigger)
+        self.addAction(act_extensions)
 
         # Run Menu
         run_menu = menu_bar.addMenu("&Run")
@@ -718,6 +735,44 @@ class MedhaMainWindow(QMainWindow):
             editor.setTextCursor(cursor)
             editor.setFocus()
 
+    def _on_theme_apply_requested(self, theme):
+        """Handle theme application request from Extensions panel."""
+        from medha.extensions.contributions import map_vscode_theme_to_medha, apply_theme_to_editor
+
+        # Map theme colors
+        mapped = map_vscode_theme_to_medha(theme)
+
+        # Apply to all open editors
+        for i in range(self.tab_widget.count()):
+            editor = self.tab_widget.widget(i)
+            if editor and hasattr(editor, 'highlighter'):
+                apply_theme_to_editor(theme, editor, editor.highlighter)
+
+        # Update main window palette
+        palette = mapped["palette"]
+        if palette:
+            # Apply to application palette
+            from PySide6.QtGui import QPalette, QColor
+            app_palette = self.palette()
+
+            # Map key colors
+            if "editor_bg" in palette:
+                app_palette.setColor(QPalette.ColorRole.Base, QColor(palette["editor_bg"]))
+                app_palette.setColor(QPalette.ColorRole.Window, QColor(palette["editor_bg"]))
+            if "editor_fg" in palette:
+                app_palette.setColor(QPalette.ColorRole.Text, QColor(palette["editor_fg"]))
+                app_palette.setColor(QPalette.ColorRole.WindowText, QColor(palette["editor_fg"]))
+            if "editor_selection" in palette:
+                app_palette.setColor(QPalette.ColorRole.Highlight, QColor(palette["editor_selection"]))
+                app_palette.setColor(QPalette.ColorRole.HighlightedText, QColor(palette.get("editor_fg", "#ffffff")))
+
+            self.setPalette(app_palette)
+            # Also apply to all child widgets
+            for widget in self.findChildren(QWidget):
+                widget.setPalette(app_palette)
+
+        self.lbl_status.setText(f"Applied theme: {theme.name}")
+
     def closeEvent(self, event):
         if hasattr(self, 'terminal') and self.terminal:
             self.terminal.close()
@@ -739,3 +794,47 @@ class MedhaMainWindow(QMainWindow):
             "<p>Autonomous Native Desktop Development Suite (PySide6 / Qt 6)</p>"
             "<p>Universal DSA Visualizer & Educational Engine Architecture</p>"
         )
+
+    def _on_theme_apply_requested(self, colors: dict):
+        """Handle theme apply request from Extensions panel."""
+        from medha.extensions.contributions import map_vscode_theme_to_medha
+        from medha.editor_widget import AdvancedCodeEditorWidget
+
+        # Apply theme colors to all open editors
+        for i in range(self.tab_widget.count()):
+            editor = self.tab_widget.widget(i)
+            if isinstance(editor, AdvancedCodeEditorWidget):
+                # Apply palette colors
+                if hasattr(editor, 'set_palette_colors'):
+                    editor.set_palette_colors(colors.get("palette", {}))
+
+                # Apply token colors to highlighter
+                if hasattr(editor, 'highlighter') and editor.highlighter:
+                    if hasattr(editor.highlighter, 'set_theme_formats'):
+                        editor.highlighter.set_theme_formats(colors.get("token_colors", {}))
+
+        # Apply to application stylesheet if supported
+        palette_colors = colors.get("palette", {})
+        if palette_colors:
+            bg = palette_colors.get("editor_bg", "#0d1117")
+            fg = palette_colors.get("editor_fg", "#c9d1d9")
+            sel = palette_colors.get("editor_selection", "#1f6feb")
+            self.apply_theme_stylesheet(bg, fg, sel)
+
+        self.lbl_status.setText("Theme applied from extension")
+
+    def apply_theme_stylesheet(self, bg: str, fg: str, selection: str):
+        """Apply theme colors to application stylesheet."""
+        # Update editor stylesheet
+        style = f"""
+            QPlainTextEdit, QTextEdit, QLineEdit {{
+                background-color: {bg};
+                color: {fg};
+                selection-background-color: {selection};
+            }}
+        """
+        # Apply to all editors
+        for i in range(self.tab_widget.count()):
+            editor = self.tab_widget.widget(i)
+            if isinstance(editor, AdvancedCodeEditorWidget):
+                editor.setStyleSheet(style)

@@ -1,13 +1,15 @@
 """
 MEDHĀ IDE — Advanced Code Editor & Outline Widget
 Features:
- 1. C/C++/Python/Java syntax highlighting & auto-indentation.
- 2. Margin line numbers, breakpoint toggle (red dots), current execution line highlight (yellow marker).
- 3. Symbol Outline parser & quick navigation for functions, structs, and variables.
+  1. C/C++/Python/Java syntax highlighting & auto-indentation.
+  2. Margin line numbers, breakpoint toggle (red dots), current execution line highlight (yellow marker).
+  3. Symbol Outline parser & quick navigation for functions, structs, and variables.
+  4. Snippet expansion with tabstop navigation ($1, $2, ..., $0).
 """
 
 import os
 import re
+from typing import TYPE_CHECKING
 from PySide6.QtWidgets import (
     QPlainTextEdit, QWidget, QTextEdit, QVBoxLayout, QListWidget, QListWidgetItem,
     QLabel, QSplitter
@@ -15,6 +17,9 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QColor, QPainter, QTextFormat, QFont, QTextCursor
 from PySide6.QtCore import Qt, QRect, QSize, Signal
 from medha.highlighter import CodeHighlighter
+
+if TYPE_CHECKING:
+    from medha.extensions.models import VSCodeSnippet
 
 
 class MarginArea(QWidget):
@@ -62,6 +67,7 @@ class AdvancedCodeEditorWidget(QPlainTextEdit):
         self.margin_area = MarginArea(self)
         self.breakpoints = set()
         self.execution_line = None
+        self.snippet_tabstops = []  # List of (tabstop_num, start_pos, end_pos)
 
         # Highlighting
         self.lang = self.detect_language(file_path)
@@ -248,7 +254,152 @@ class AdvancedCodeEditorWidget(QPlainTextEdit):
             self.insertPlainText(leading)
             return
 
+        # Snippet tab-stop navigation (Tab/Shift+Tab)
+        if key == Qt.Key.Key_Tab and self.snippet_tabstops:
+            self._jump_to_next_tabstop()
+            return
+        if key == Qt.Key.Key_Backtab and self.snippet_tabstops:  # Shift+Tab
+            self._jump_to_prev_tabstop()
+            return
+
         super().keyPressEvent(event)
+
+    def set_palette_colors(self, palette: dict) -> None:
+        """
+        Apply theme palette colors to the editor.
+
+        Args:
+            palette: Dict mapping MEDHA color keys -> hex color strings
+        """
+        style_parts = []
+
+        # Editor background/foreground
+        if "editor_bg" in palette:
+            style_parts.append(f"background-color: {palette['editor_bg']};")
+        if "editor_fg" in palette:
+            style_parts.append(f"color: {palette['editor_fg']};")
+        if "editor_selection" in palette:
+            style_parts.append(f"selection-background-color: {palette['editor_selection']};")
+        if "editor_cursor" in palette:
+            style_parts.append(f"caret-color: {palette['editor_cursor']};")
+
+        # Line numbers
+        if "linenumber_fg" in palette:
+            style_parts.append(f"QAbstractScrollArea {{ color: {palette['linenumber_fg']}; }}")
+
+        # Apply stylesheet
+        if style_parts:
+            self.setStyleSheet(f"QPlainTextEdit {{ {' '.join(style_parts)} }}")
+
+        # Update margin area background
+        if "editor_bg" in palette:
+            self.margin_area.setStyleSheet(f"background-color: {palette['editor_bg']};")
+
+        # Trigger repaint
+        self.viewport().update()
+        self.margin_area.update()
+
+    def set_snippet(self, snippet: 'VSCodeSnippet') -> None:
+        """
+        Insert a snippet at cursor position and set up tabstops.
+
+        Args:
+            snippet: VSCodeSnippet to insert
+        """
+        cursor = self.textCursor()
+        cursor.beginEditBlock()
+
+        body_lines = snippet.body
+        if isinstance(body_lines, str):
+            body_lines = [body_lines]
+
+        # Insert the snippet body
+        for i, line in enumerate(body_lines):
+            if i > 0:
+                cursor.insertText("\n")
+            cursor.insertText(line)
+
+        # Find and store tabstop positions BEFORE removing markers
+        self.snippet_tabstops = []
+        import re
+        text = self.toPlainText()
+        for match in re.finditer(r'\$(\d+)', text):
+            tabstop_num = int(match.group(1))
+            pos = match.start()
+            self.snippet_tabstops.append((tabstop_num, pos, pos + len(match.group(0))))
+
+        # Sort by position (highest first) for removal
+        tabstops_by_position = sorted(self.snippet_tabstops, key=lambda x: x[1], reverse=True)
+
+        # Remove markers from highest position to lowest
+        # Original positions are valid since earlier removals don't affect earlier positions
+        for num, start, end in tabstops_by_position:
+            cursor = self.textCursor()
+            cursor.setPosition(start)
+            cursor.setPosition(end, cursor.MoveMode.KeepAnchor)
+            cursor.removeSelectedText()
+            # After removal, the tabstop position is at 'start' (where the marker was)
+            # We'll update the stored positions after all removals
+
+        # Update tabstops: positions are now at the original start positions
+        # (since we removed the marker text, the cursor position is where the marker started)
+        updated_tabstops = [(num, start, start) for num, start, end in self.snippet_tabstops]
+        # Sort by tabstop number for navigation
+        updated_tabstops.sort(key=lambda x: x[0])
+        self.snippet_tabstops = updated_tabstops
+
+        cursor.endEditBlock()
+
+        # Move cursor to first tabstop ($1) or $0 if no $1
+        self._jump_to_tabstop(1)  # Try $1 first
+
+    def _jump_to_tabstop(self, tabstop_num: int) -> bool:
+        """Jump to a specific tabstop number."""
+        for num, start, end in self.snippet_tabstops:
+            if num == tabstop_num:
+                cursor = self.textCursor()
+                cursor.setPosition(start)
+                cursor.setPosition(end, cursor.MoveMode.KeepAnchor)
+                self.setTextCursor(cursor)
+                return True
+        return False
+
+    def _jump_to_next_tabstop(self) -> None:
+        """Jump to the next tabstop in sequence."""
+        cursor = self.textCursor()
+        current_pos = cursor.position()
+
+        # Find current tabstop
+        current_num = 0
+        for num, start, end in self.snippet_tabstops:
+            if start <= current_pos <= end:
+                current_num = num
+                break
+
+        # Jump to next
+        next_num = current_num + 1
+        if not self._jump_to_tabstop(next_num):
+            # Try $0 (final position)
+            self._jump_to_tabstop(0)
+
+    def _jump_to_prev_tabstop(self) -> None:
+        """Jump to the previous tabstop in sequence."""
+        cursor = self.textCursor()
+        current_pos = cursor.position()
+
+        # Find current tabstop
+        current_num = 0
+        for num, start, end in self.snippet_tabstops:
+            if start <= current_pos <= end:
+                current_num = num
+                break
+
+        if current_num > 1:
+            self._jump_to_tabstop(current_num - 1)
+
+    def get_snippet_tabstops(self) -> list:
+        """Get list of tabstops for testing."""
+        return getattr(self, 'snippet_tabstops', [])
 
 
 class CodeOutlineWidget(QWidget):

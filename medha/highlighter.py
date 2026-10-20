@@ -76,3 +76,80 @@ class CodeHighlighter(QSyntaxHighlighter):
             while it.hasNext():
                 match = it.next()
                 self.setFormat(match.capturedStart(), match.capturedLength(), fmt)
+
+    def set_theme_formats(self, token_colors: dict) -> None:
+        """
+        Apply theme token colors to the highlighter formats.
+
+        Args:
+            token_colors: Dict mapping token type -> format dict with
+                          'foreground', 'background', 'fontStyle' keys
+        """
+        # Map MEDHA token types to internal format attributes
+        token_format_map = {
+            "keyword": "fmt_keyword",
+            "keyword_operator": "fmt_keyword",
+            "string": "fmt_string",
+            "string_regex": "fmt_string",
+            "comment": "fmt_comment",
+            "number": "fmt_number",
+            "type": "fmt_type",
+            "function": "fmt_function",
+            "function_call": "fmt_function",
+            "constant": "fmt_constant",
+            "constant_char": "fmt_constant",
+            "constant_lang": "fmt_constant",
+            "entity": "fmt_entity",
+            "entity_name": "fmt_entity",
+            "class_name": "fmt_type",
+            "tag": "fmt_tag",
+            "variable": "fmt_variable",
+            "variable_lang": "fmt_variable",
+            "parameter": "fmt_parameter",
+            "storage": "fmt_storage",
+            "storage_modifier": "fmt_storage",
+            "support": "fmt_support",
+            "support_function": "fmt_support_function",
+            "support_class": "fmt_support_class",
+            "support_type": "fmt_support_type",
+            "support_constant": "fmt_support_constant",
+            "support_variable": "fmt_support_variable",
+            "markup": "fmt_markup",
+            "heading": "fmt_heading",
+            "bold": "fmt_bold",
+            "italic": "fmt_italic",
+            "underline": "fmt_underline",
+            "link": "fmt_link",
+            "quote": "fmt_quote",
+            "list": "fmt_list",
+            "meta": "fmt_meta",
+            "meta_brace": "fmt_meta",
+            "meta_tag": "fmt_meta",
+            "invalid": "fmt_invalid",
+            "deprecated": "fmt_deprecated",
+        }
+
+        for token_type, format_dict in token_colors.items():
+            if token_type not in token_format_map:
+                continue
+            fmt_attr = token_format_map[token_type]
+            if not hasattr(self, fmt_attr):
+                # Create format if it doesn't exist
+                setattr(self, fmt_attr, QTextCharFormat())
+            fmt = getattr(self, fmt_attr)
+
+            if "foreground" in format_dict and format_dict["foreground"]:
+                fmt.setForeground(QColor(format_dict["foreground"]))
+            if "background" in format_dict and format_dict["background"]:
+                fmt.setBackground(QColor(format_dict["background"]))
+            if "fontStyle" in format_dict:
+                style = format_dict["fontStyle"]
+                if "italic" in style:
+                    fmt.setFontItalic(True)
+                if "bold" in style:
+                    fmt.setFontWeight(QFont.Weight.Bold)
+                if "underline" in style:
+                    fmt.setFontUnderline(True)
+
+        # Re-highlight the entire document
+        self.rehighlight()
