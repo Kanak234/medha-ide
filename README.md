@@ -1,166 +1,109 @@
-# MEDHĀ IDE — मेधा IDE
-> **Autonomous Offline AI-Powered Development Environment**
+<p align="center">
+  <img src="docs/assets/logo-mark.svg" width="80" alt="MEDHĀ logo">
+</p>
+
+# MEDHĀ IDE
+
+**Native PySide6 offline IDE for C/C++/Python — editor, real compiler runs, terminal, problems panel, LSP (clangd/pylsp), GDB/debugpy debugger, Git, CMake build, local Ollama AI panel, Open VSX extensions (themes/snippets/grammar subset).**
 
 ---
 
-## 👤 Creator & Leadership Information
+## What MEDHA Is
 
-- **Created by**: Kanak Prabhakar
-- **Primary Creator & Lead**: Kanak Prabhakar
+MEDHĀ is a **native desktop IDE** written in Python with PySide6 (Qt 6). It is offline-first: everything works without internet except searching/downloading extensions from Open VSX. No Electron, no web views, no bundled browsers. It integrates your system toolchain (gcc, g++, gdb, python3, clangd, pylsp, cmake, git, ollama) into a single window with dockable panels.
 
----
-
-## 📖 Project Origin & Inception
-
-The vision for **MEDHĀ IDE** was conceived in **2022** by **Kanak Prabhakar** and has evolved continuously through day-by-day research, development, experimentation, implementation, testing, debugging, refinement, and expansion.
-
-### The Problem MEDHĀ IDE Solves
-Modern software development suffers from extreme fragmentation. Developers constantly waste time and focus switching between separate tools for:
-- Writing Code & Syntax Highlighting
-- Compiling & Interpreting Multi-Language Source Code
-- Debugging & Stack Trace Analysis
-- Test Runners & Unit Test Automation
-- Git Source Control & Branch Management
-- Terminal & Shell Environments
-- Database Administration (SQL/NoSQL)
-- AI Code Generation & Refactoring
-- Offline Documentation Libraries
-- Static Security Auditing & Vulnerability Detection
-- Algorithmic Performance & Complexity Analysis
-- Web Browser Testing & DevTools
-- Mobile Development & Device Emulation
-- DevOps, Docker & Containerization
-- Dependency Management & Compiler Runtime Toolchains
-
-**MEDHĀ IDE** unifies all these essential workflows into one intelligent, offline-first, sandbox-isolated development environment.
+**Not a web app.** The `legacy/` folder (archived) was a React/Vite/Monaco prototype — it is not MEDHA.
 
 ---
 
-## ☸️ Why the Name "MEDHĀ" (मेधा)
+## Real Features (Implemented in `medha/`)
 
-**MEDHĀ** — **मेधा** is a Sanskrit term associated with **intellect, intelligence, understanding, wisdom, and the capacity to comprehend and retain knowledge**.
-
-This aligns directly with our core product philosophy:
-
-$$\text{Knowledge} \longrightarrow \text{Intelligence} \longrightarrow \text{Creation}$$
+| Feature | Module | Status |
+|---------|--------|--------|
+| Multi-tab code editor with syntax highlighting | `medha/editor.py`, `editor_widget.py` | ✅ |
+| Real compilation & execution (gcc/g++/python3) | `medha/runner.py` | ✅ |
+| Integrated terminal (real shell via QProcess) | `medha/terminal.py` | ✅ |
+| Problems panel (parses compiler stderr) | `medha/problems.py` | ✅ |
+| LSP client — clangd (C/C++), pylsp (Python) | `medha/lsp.py` | ✅ (needs clangd / python-lsp-server installed) |
+| GDB debugger (C/C++) + debugpy (Python) | `medha/debugger.py`, `debugger_engine.py` | ✅ GDB verified; debugpy needs `pip install debugpy` |
+| Git status, stage, commit, log, diff | `medha/git_backend.py` | ✅ |
+| CMake configure & build (multi-target Debug/Release) | `medha/build.py`, `build_system.py` | ✅ |
+| Live disassembly (gcc -S) | `medha/compiler/disassembly.py` | ✅ |
+| Project explorer | `medha/explorer.py` | ✅ |
+| Local Ollama AI chat panel | `medha/ai.py`, `ai_panel.py` | ✅ |
+| Open VSX extensions: themes, snippets, grammar subset | `medha/extensions/` | ✅ |
+| Memory visualizer & pointer inspector | `medha/visualizers/memory_view.py` | ✅ |
+| DSA visualizer (arrays, trees, graphs) | `medha/dsa_visualizer/` | ✅ |
+| Symbol outline | `medha/editor_widget.py` | ✅ |
+| Static safety linter (cppcheck integration) | `medha/analyzers/linter.py` | ✅ |
 
 ---
 
-## 🏛️ Intelligent Subsystem Architecture
+## Install
 
-MEDHĀ serves as the central intelligence coordination layer directing four specialized, transparent, secular technical subsystems:
+```bash
+# 1. Clone and enter
+git clone <this-repo> medha-ide
+cd medha-ide
 
-```
-                    MEDHĀ IDE
-                        |
-                MEDHĀ Intelligence
-                        |
-       ┌────────────────┼────────────────┐
-       │                │                │
-   SARASVATĪ          KĀLĪ        MAHĀLAKṢMĪ
-   Knowledge         Security      Performance
-       │                │                │
-       └────────────────┼────────────────┘
-                        │
-                    VAISHNAVĪ
-                  Orchestration
-                        │
-               Developer Workspace
+# 2. Create venv and install deps
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+# Requirements: PySide6>=6.12, psutil>=7.2, requests>=2.34
+
+# 3. Run
+.venv/bin/python -m medha
 ```
 
-### Subsystem Summary Table
-
-| Subsystem Name | Role | Responsibilities | Implementation Status |
-| :--- | :--- | :--- | :--- |
-| **SARASVATĪ** (सरस्वती) | Knowledge & Learning Engine | Code explanation, documentation, offline docs, RAG indexing, tutorials, code comprehension | `IMPLEMENTED` \| `TESTED` \| `VERIFIED` |
-| **KĀLĪ** (काली) | Security & Defence Engine | Static security analysis, vulnerability scanning, secret detection, workspace boundary verification | `IMPLEMENTED` \| `TESTED` \| `VERIFIED` |
-| **MAHĀLAKṢMĪ** (महालक्ष्मी) | Performance & Resource Engine | CPU/memory analysis, execution-time measurement, benchmarking, algorithm complexity profiling | `IMPLEMENTED` \| `TESTED` \| `VERIFIED` |
-| **VAISHNAVĪ** (वैष्णवी) | Autonomous Execution & Orchestration | Build orchestration, compilation, test execution, browser preview, release workflows | `IMPLEMENTED` \| `TESTED` \| `VERIFIED` |
-
----
-
-## 🕊️ Personal Dedication
-
-> **"MEDHĀ IDE is dedicated by Kanak Prabhakar to Maa Vaishno, Maa Kali, Maa Saraswati, his mother, his girlfriend, and his sister, as an expression of gratitude, inspiration, love, knowledge, strength and dedication."**
-
-*Note: This dedication represents personal inspiration, spiritual reverence, and family gratitude by Kanak Prabhakar. Sole technical creator & project lead remains strictly Kanak Prabhakar.*
+**System dependencies** (install via your package manager):
+- `gcc` `g++` `gdb` — C/C++ compilation & debugging
+- `python3` — Python execution & debugpy
+- `clangd` — C/C++ LSP (optional but recommended)
+- `pylsp` / `python-lsp-server` — Python LSP (optional)
+- `cmake` `make` — CMake build system
+- `git` — Git integration
+- `ollama` — Local AI (optional)
+- `cppcheck` — Static safety linting (optional)
 
 ---
 
-## 🎯 Product Philosophy & Core Principles
+## Run Tests & Validators
 
-1. **Offline-First**: Core development, compilation, database execution, and AI capabilities operate completely offline without requiring internet access.
-2. **AI-Assisted (Verified)**: AI assistance does not mean blindly trusting generated code. All AI suggestions are statically analyzed, verified against test suites, and audited for OWASP security standards.
-3. **Developer-Centric**: Built specifically to eliminate context switching and maximize developer flow state.
-4. **Security-First & Sandbox Isolated**: Strict workspace boundary isolation (`/home/kanak/Desktop/ide`). System commands and file modifications are constrained to prevent exfiltration or file deletion.
-5. **Privacy-Conscious**: Zero telemetry tracking, zero background analytics, complete data ownership.
-6. **Open-Source Friendly**: Built on top of robust open-source technologies while respecting all third-party licenses.
-7. **Cross-Platform**: Operates seamlessly across Linux (Debian `.deb`, AppImage), Windows, macOS, Android (APK), and Web browsers.
-8. **Educational & Transparent**: Features built-in educational interactive algorithm visualizers and algorithm complexity estimators ($O(1)$, $O(\log n)$, $O(n)$, $O(n^2)$).
+```bash
+# Unit tests
+.venv/bin/python -m pytest tests -q
 
----
+# Adversarial validator (Phases 1-2): window, runner, terminal, diagnostics
+.venv/bin/python verify_medha.py
 
-## 🏢 Organizational & R&D Information
+# Adversarial validator (Phases 3-6): LSP, debugger, git, build, hygiene
+.venv/bin/python verify_medha_p3_p6.py
 
-**MEDHĀ IDE** was developed as part of **Kanak Prabhakar**'s broader work across his company, YouTube channel, and organisation.
-
-### Reported Development Investment
-- **Total R&D / Development Investment**: **₹50,000 INR**
-
-This amount represents the reported investment toward:
-- Research and development
-- Building and integrating the IDE architecture
-- Development infrastructure and hardware resources
-- Experimentation, testing, and debugging
-- Integration, adaptation, and configuration of open-source technologies
-
-*(Note: This figure represents the reported R&D development investment and does not represent the market valuation of third-party open-source components).*
-
----
-
-## 🚀 Key Feature Engine Modules
-
-- **Polyglot Compiler Runtime**: Pre-bundled compilers for C/C++ (GCC 15.2), Python (v3.14), Java (JDK 21), Node.js (v22), Rust (1.85), Go (1.24), Bash, Zsh.
-- **Database Studio Engine**: Built-in SQL & NoSQL query runners for Oracle 23c, PostgreSQL 16, MySQL 8.4, MongoDB 7.0, and SQLite 3.
-- **LibreOffice Productivity Suite**: Open-source LibreOffice Writer (`.odt`), Calc (`.ods`), Impress (`.odp`), and Math equation editor.
-- **Integrated Development Browser**: Embedded multi-tab web browser, dev server auto-detector (`localhost:5173`), responsive device emulator (Desktop, Laptop, Tablet, iPhone, Android), and DevTools (Console, DOM Elements, Network, Storage).
-- **Graphic & Motion Studio**: Vector canvas layer editor, keyframe motion timeline (0.0s – 3.0s), SVG vector exporter, and CSS keyframe generator.
-- **Digital Photo & Image Processing Studio**: Image color grading, brightness, contrast, saturation, blur, hue rotation, sepia filters, and preset styles.
-- **VLC Media Player Studio**: LibVLC embedded player, 4K/60FPS video playback, audio spectrum visualizer, and codec inspector.
-- **2D/3D Game Development Engine**: Interactive WebGL 3D scene stage, entity component hierarchy, materials, lights, cameras, physics rigid bodies, and Godot/Unity code script generator.
-- **Static Security Auditor**: Regex & rule-based static security analyzer for OWASP Top 10 vulnerabilities (SQL injection, XSS, hardcoded secrets, weak cryptography).
-- **Code Editor Keymaps**: VS Code, Vim (with modal indicator), Nano, and JetBrains keymap modes.
-
----
-
-## 📜 Authorship Integrity & Licensing
-
-**MEDHĀ IDE** clearly distinguishes between original MEDHĀ IDE code developed by **Kanak Prabhakar** and third-party open-source libraries (such as React, Vite, Monaco Editor, Lucide React, Vitest, Monaco-Editor Loader). All third-party copyrights, licenses, and notices are strictly preserved in [`THIRD_PARTY_NOTICES`](./THIRD_PARTY_NOTICES) and [`LICENSE`](./LICENSE).
-
----
-
-## 💡 About Summary
-
+# DSA visualizer verification
+.venv/bin/python verify_dsa_visualizer.py
 ```
-MEDHĀ IDE — मेधा IDE
-Autonomous Offline AI-Powered Development Environment
 
-Created by:
-Kanak Prabhakar
+**Validators use runtime-generated values** — hardcoded/mocked output cannot pass.
 
-Primary Creator & Lead:
-Kanak Prabhakar
+---
 
-Vision conceived in 2022.
+## Limitations (Honest)
 
-Intelligent Subsystems:
-SARASVATĪ — Knowledge & Learning Engine
-KĀLĪ — Security & Defence Engine
-MAHĀLAKṢMĪ — Performance & Resource Engine
-VAISHNAVĪ — Autonomous Execution & Orchestration Engine
+- **No VS Code JavaScript extensions** — only Open VSX extensions that are pure data (themes, snippets, TextMate grammars). Node.js-based extensions (language servers, debuggers, formatters) cannot run.
+- **LSP requires external binaries** — `clangd` for C/C++, `pylsp` for Python. Install them separately; MEDHA will auto-detect if on PATH.
+- **Debugpy for Python** — install via `pip install debugpy` (or `--break-system-packages`).
+- **No bundled compilers/runtimes** — uses your system `gcc`, `g++`, `python3`, `cmake`, `git`.
+- **Linux-first** — Wayland/X11 via Qt. Windows/macOS untested.
+- **No web browser, no Monaco, no LibreOffice, no VLC, no game engine** — those were in the archived `legacy/` prototype.
 
-Dedication:
-MEDHĀ IDE is dedicated by Kanak Prabhakar to Maa Vaishno, Maa Kali, Maa Saraswati, his mother, his girlfriend, and his sister.
+---
 
-Knowledge → Intelligence → Creation
-```
+## Logo
+
+The logo mark (`medha/assets/logo-mark.svg`) is shown above. If you don't see it, the file may be at `video-editor/logo-mark.svg` in the parent workspace.
+
+---
+
+## License
+
+See [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES).

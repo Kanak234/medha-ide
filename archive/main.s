@@ -20,13 +20,13 @@ main:
 	.cfi_offset 6, -16
 	movq	%rsp, %rbp	#,
 	.cfi_def_cfa_register 6
-# /home/kanak/Desktop/ide/main.c:5:     printf("Hello from Native MEDHĀ IDE!\n");
+# /home/kanak07/chromium-shift/medha-ide/main.c:5:     printf("Hello from Native MEDHĀ IDE!\n");
 	leaq	.LC0(%rip), %rax	#, tmp100
 	movq	%rax, %rdi	# tmp100,
 	call	puts@PLT	#
-# /home/kanak/Desktop/ide/main.c:6:     return 0;
+# /home/kanak07/chromium-shift/medha-ide/main.c:6:     return 0;
 	movl	$0, %eax	#, _3
-# /home/kanak/Desktop/ide/main.c:7: }
+# /home/kanak07/chromium-shift/medha-ide/main.c:7: }
 	popq	%rbp	#
 	.cfi_def_cfa 7, 8
 	ret	

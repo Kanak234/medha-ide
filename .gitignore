@@ -1,18 +1,60 @@
+# MEDHA IDE .gitignore
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+
+# Build artifacts
+main
+main.c
+main.s
+*.o
+run*.txt
+dist/
+build/
+release/
+*.spec
+
+# PyInstaller
+*.spec
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Web leftovers (archived, but ignore if recreated)
+node_modules/
+package-lock.json
+tsconfig.json
+
+# Test cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local AI models (large)
+*.gguf
+*.bin
+*.pt
+*.safetensors
+
+# Environment
 .env
 .env.*
 !.env.example
+
+# Secrets
 *.pem
 *.key
 *credentials*
-__pycache__/
-*.pyc
-node_modules/
-target/
-venv/
-.venv/
-dist/
-build/
-*.gguf
-*.pt
-*.safetensors
-release/
