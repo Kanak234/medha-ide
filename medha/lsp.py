@@ -16,8 +16,9 @@ class LspClient:
 
     def start(self) -> None:
         cmd = None
+        local_bin = os.path.expanduser("~/.local/bin")
         if self.language in ["c", "cpp", "c++"]:
-            clangd_path = shutil.which("clangd") or "/home/kanak/.local/bin/clangd"
+            clangd_path = shutil.which("clangd") or os.path.join(local_bin, "clangd")
             cmd = [clangd_path, "--background-index"]
         elif self.language in ["python", "py"]:
             pylsp_path = shutil.which("pylsp") or shutil.which("pylsp-server") or "pylsp"
@@ -26,7 +27,7 @@ class LspClient:
             cmd = ["clangd"]
 
         env = dict(os.environ)
-        env["PATH"] = f"/home/kanak/.local/bin:{env.get('PATH', '')}"
+        env["PATH"] = f"{local_bin}:{env.get('PATH', '')}"
 
         self.proc = subprocess.Popen(
             cmd,

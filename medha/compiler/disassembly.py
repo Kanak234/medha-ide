@@ -54,6 +54,11 @@ class DisassemblyInspectorWidget(QWidget):
         self.process = QProcess(self)
         self.process.readyReadStandardOutput.connect(self._read_stdout)
         self.process.readyReadStandardError.connect(self._read_stderr)
+        # WHY: on_disassembly_finished() existed but was never connected, so the .s file was
+        #      generated but never shown in the panel.
+        # WHAT: when gcc -S finishes, load the generated assembly into asm_edit.
+        # WHERE: finished(exit_code, status) -> on_disassembly_finished -> asm_edit text.
+        self.process.finished.connect(lambda code, _status: self.on_disassembly_finished(code))
 
     def set_active_file(self, file_path):
         self.active_file = file_path
@@ -75,6 +80,14 @@ class DisassemblyInspectorWidget(QWidget):
         asm_out_path = os.path.splitext(self.active_file)[0] + ".s"
 
         cmd_args = ["-S", "-fverbose-asm", "-O0", self.active_file, "-o", asm_out_path]
+        # WHY: opening a file triggers set_active_file() twice (tab-change signal + open_file_path),
+        #      so a second start() hit a still-running gcc and Qt printed
+        #      "QProcess::start: Process is already running".
+        # WHAT: if an older disassembly is still running, stop it first; only the newest file matters.
+        # WHERE: then the fresh gcc -S run below starts cleanly on the same QProcess.
+        if self.process.state() != QProcess.ProcessState.NotRunning:
+            self.process.kill()
+            self.process.waitForFinished(1000)
         self.process.setWorkingDirectory(dir_name)
         self.asm_edit.setPlainText(f"; [MEDHĀ Disassembler] Generating x86_64 assembly for {self.active_file}...\n")
         self.process.start(compiler, cmd_args)

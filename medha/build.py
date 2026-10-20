@@ -19,9 +19,10 @@ class BuildSystem:
     def configure(self) -> tuple[int, str]:
         kind = self.detect()
         if kind == "cmake":
-            cmake_path = shutil.which("cmake") or "/home/kanak/.local/bin/cmake"
+            local_bin = os.path.expanduser("~/.local/bin")
+            cmake_path = shutil.which("cmake") or os.path.join(local_bin, "cmake")
             env = dict(os.environ)
-            env["PATH"] = f"/home/kanak/.local/bin:{env.get('PATH', '')}"
+            env["PATH"] = f"{local_bin}:{env.get('PATH', '')}"
             res = subprocess.run(
                 [cmake_path, "-B", self.build_dir, "-S", self.project_dir],
                 cwd=self.project_dir,
@@ -36,11 +37,12 @@ class BuildSystem:
 
     def build(self) -> tuple[int, str, str]:
         kind = self.detect()
+        local_bin = os.path.expanduser("~/.local/bin")
         env = dict(os.environ)
-        env["PATH"] = f"/home/kanak/.local/bin:{env.get('PATH', '')}"
+        env["PATH"] = f"{local_bin}:{env.get('PATH', '')}"
 
         if kind == "cmake":
-            cmake_path = shutil.which("cmake") or "/home/kanak/.local/bin/cmake"
+            cmake_path = shutil.which("cmake") or os.path.join(local_bin, "cmake")
             res = subprocess.run(
                 [cmake_path, "--build", self.build_dir],
                 cwd=self.project_dir,

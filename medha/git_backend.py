@@ -8,7 +8,8 @@ class GitBackend:
 
     def _run_git(self, args: list[str]) -> subprocess.CompletedProcess:
         env = dict(os.environ)
-        env["PATH"] = f"/home/kanak/.local/bin:{env.get('PATH', '')}"
+        local_bin = os.path.expanduser("~/.local/bin")
+        env["PATH"] = f"{local_bin}:{env.get('PATH', '')}"
         return subprocess.run(
             ["git"] + args,
             cwd=self.repo_path,

@@ -1,10 +1,13 @@
+import os
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QTreeView, QLabel, QHeaderView, QFileSystemModel
 from PySide6.QtCore import QDir, Signal, Qt
 
 class ProjectExplorerWidget(QWidget):
     file_selected = Signal(str)
 
-    def __init__(self, workspace_path="/home/kanak/Desktop/ide", parent=None):
+    def __init__(self, workspace_path=None, parent=None):
+        if workspace_path is None:
+            workspace_path = os.getcwd()
         super().__init__(parent)
         self.workspace_path = workspace_path
 

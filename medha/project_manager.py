@@ -99,7 +99,9 @@ class WorkspaceManager(QObject):
     project_added = Signal(MedhaProject)
     project_removed = Signal(str)
 
-    def __init__(self, workspace_dir="/home/kanak/Desktop/ide"):
+    def __init__(self, workspace_dir=None):
+        if workspace_dir is None:
+            workspace_dir = os.getcwd()
         super().__init__()
         self.workspace_dir = workspace_dir
         self.projects = []
@@ -144,7 +146,9 @@ class ProjectExplorerWidget(QWidget):
     project_selected = Signal(MedhaProject)
     config_changed = Signal(str, str) # project_name, config_name
 
-    def __init__(self, workspace_path="/home/kanak/Desktop/ide", parent=None):
+    def __init__(self, workspace_path=None, parent=None):
+        if workspace_path is None:
+            workspace_path = os.getcwd()
         super().__init__(parent)
         self.workspace_path = workspace_path
         self.workspace_manager = WorkspaceManager(workspace_path)

@@ -6,9 +6,13 @@ from PySide6.QtCore import QProcess, Qt, Signal
 class IntegratedTerminalWidget(QWidget):
     command_executed = Signal(str)
 
-    def __init__(self, workspace_path="/home/kanak/Desktop/ide", parent=None):
+    def __init__(self, workspace_path=None, parent=None):
+        if workspace_path is None:
+            workspace_path = os.getcwd()
         super().__init__(parent)
         self.workspace_path = workspace_path
+        self._shell_started = False
+        self._pending_input = []
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -49,24 +53,48 @@ class IntegratedTerminalWidget(QWidget):
         self.process.readyReadStandardOutput.connect(self.read_stdout)
         self.process.readyReadStandardError.connect(self.read_stderr)
         self.process.finished.connect(self.on_process_finished)
+        self.process.started.connect(self._on_process_started)
+        self.process.errorOccurred.connect(self._on_process_error)
 
         self.start_shell()
 
     def closeEvent(self, event):
         if hasattr(self, 'process') and self.process and self.process.state() != QProcess.ProcessState.NotRunning:
             self.process.terminate()
-            if not self.process.waitForFinished(1000):
+            if not self.process.waitForFinished(2000):
                 self.process.kill()
+                self.process.waitForFinished(1000)
         super().closeEvent(event)
 
     def on_process_finished(self, exit_code, exit_status):
         self.append_output(f"\n[Process exited with code {exit_code}]\n", color="#8b949e")
+        self._shell_started = False
+
+    def _on_process_started(self):
+        self._shell_started = True
+        # Flush any pending input
+        for cmd in self._pending_input:
+            self.process.write((cmd + "\n").encode("utf-8"))
+        self._pending_input.clear()
+
+    def _on_process_error(self, error):
+        self.append_output(f"[Process error: {error}]\n", color="#f85149")
 
     def start_shell(self):
-        if self.process.state() == QProcess.ProcessState.NotRunning:
+        # Only start if not already started or starting
+        if self._shell_started:
+            return
+        state = self.process.state()
+        if state == QProcess.ProcessState.NotRunning:
             shell = os.environ.get("SHELL", "/bin/bash")
             self.process.start(shell, ["-i"])
             self.append_output(f"[MEDHĀ Real Terminal] Started shell: {shell}\n")
+        elif state == QProcess.ProcessState.Starting:
+            # Process is starting up, wait for it to finish starting
+            pass  # Will be ready soon via started signal
+        else:
+            # Running but flag not set - sync it
+            self._shell_started = True
 
     def read_stdout(self):
         data = self.process.readAllStandardOutput().data().decode("utf-8", errors="replace")
@@ -91,15 +119,22 @@ class IntegratedTerminalWidget(QWidget):
         text = self.input_line.text()
         self.input_line.clear()
 
-        if self.process.state() == QProcess.ProcessState.Running:
+        if self._shell_started and self.process.state() == QProcess.ProcessState.Running:
             self.append_output(f"{text}\n", color="#79c0ff")
             self.process.write((text + "\n").encode("utf-8"))
             self.command_executed.emit(text)
         else:
-            self.start_shell()
-            self.process.write((text + "\n").encode("utf-8"))
+            # Queue input until shell is ready
+            self._pending_input.append(text)
+            if not self._shell_started:
+                self.start_shell()
 
     def execute_command(self, cmd_string):
-        self.start_shell()
-        self.append_output(f"{cmd_string}\n", color="#79c0ff")
-        self.process.write((cmd_string + "\n").encode("utf-8"))
+        if self._shell_started and self.process.state() == QProcess.ProcessState.Running:
+            self.append_output(f"{cmd_string}\n", color="#79c0ff")
+            self.process.write((cmd_string + "\n").encode("utf-8"))
+        else:
+            # Queue command until shell is ready
+            self._pending_input.append(cmd_string)
+            if not self._shell_started:
+                self.start_shell()

@@ -26,8 +26,10 @@ from medha.dsa_visualizer.tracers.dsa_tracer import UniversalDSATracer
 
 
 class MedhaMainWindow(QMainWindow):
-    def __init__(self, workspace_path="/home/kanak/Desktop/ide"):
+    def __init__(self, workspace_path=None):
         super().__init__()
+        if workspace_path is None:
+            workspace_path = os.getcwd()
         self.workspace_path = workspace_path
         self.setWindowTitle("MEDHĀ IDE — Native PySide6 C/C++ Studio")
         self.resize(1440, 850)
