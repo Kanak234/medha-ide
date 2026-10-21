@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.Kanak234.Medha</id>
+  <name>MEDH&#257; IDE</name>
+  <summary>Native PySide6 offline IDE for C/C++/Python</summary>
+  <developer id="com.github.Kanak234">
+    <name>Kanak Prabhakar</name>
+    <email>kanakprabhakar72@gmail.com</email>
+    <url>https://github.com/Kanak234</url>
+  </developer>
+  <project_license>GPL-3.0-or-later</project_license>
+  <metadata_license>CC0-1.0</metadata_license>
+  <description>
+    <p>
+      MEDH&#257; is a native desktop IDE written in Python with PySide6 (Qt 6).
+      It is offline-first: everything works without internet except searching/downloading
+      extensions from Open VSX. No Electron, no web views, no bundled browsers.
+      It integrates your system toolchain (gcc, g++, gdb, python3, clangd, pylsp, cmake, git, ollama)
+      into a single window with dockable panels.
+    </p>
+    <p>Real Features (Implemented in medha/):</p>
+    <ul>
+      <li>Multi-tab code editor with syntax highlighting</li>
+      <li>Real compilation &amp; execution (gcc/g++/python3)</li>
+      <li>Integrated terminal (real shell via QProcess)</li>
+      <li>Problems panel (parses compiler stderr)</li>
+      <li>LSP client &#8212; clangd (C/C++), pylsp (Python)</li>
+      <li>GDB debugger (C/C++) + debugpy (Python)</li>
+      <li>Git status, stage, commit, log, diff</li>
+      <li>CMake configure &amp; build (multi-target Debug/Release)</li>
+      <li>Live disassembly (gcc -S)</li>
+      <li>Project explorer</li>
+      <li>Local Ollama AI chat panel</li>
+      <li>Open VSX extensions: themes, snippets, grammar subset</li>
+      <li>Memory visualizer &amp; pointer inspector</li>
+      <li>DSA visualizer (arrays, trees, graphs)</li>
+      <li>Symbol outline</li>
+      <li>Static safety linter (cppcheck integration)</li>
+    </ul>
+    <p>Limitations (Honest):</p>
+    <ul>
+      <li>No VS Code JavaScript extensions &#8212; only Open VSX extensions that are pure data (themes, snippets, TextMate grammars). Node.js-based extensions (language servers, debuggers, formatters) cannot run.</li>
+      <li>LSP requires external binaries &#8212; <code>clangd</code> for C/C++, <code>pylsp</code> for Python. Install them separately; MEDH&#257; will auto-detect if on PATH.</li>
+      <li>Debugpy for Python &#8212; install via <code>pip install debugpy</code> (or <code>--break-system-packages</code>).</li>
+      <li>No bundled compilers/runtimes &#8212; uses your system <code>gcc</code>, <code>g++</code>, <code>python3</code>, <code>cmake</code>, <code>git</code>.</li>
+      <li>Linux-first &#8212; Wayland/X11 via Qt. Windows/macOS untested.</li>
+      <li>No web browser, no Monaco, no LibreOffice, no VLC, no game engine &#8212; those were in the archived <code>legacy/</code> prototype.</li>
+    </ul>
+  </description>
+  <url type="homepage">https://github.com/Kanak234/medha-ide</url>
+  <url type="bugtracker">https://github.com/Kanak234/medha-ide/issues</url>
+  <url type="donation">https://github.com/sponsors/Kanak234</url>
+  <content_rating type="oars-1.1">
+    <content_attribute id="violence-cartoon">none</content_attribute>
+    <content_attribute id="violence-fantasy">none</content_attribute>
+    <content_attribute id="violence-realistic">none</content_attribute>
+    <content_attribute id="violence-bloodshed">none</content_attribute>
+    <content_attribute id="violence-sexual">none</content_attribute>
+    <content_attribute id="drugs-alcohol">none</content_attribute>
+    <content_attribute id="drugs-tobacco">none</content_attribute>
+    <content_attribute id="sex-nudity">none</content_attribute>
+    <content_attribute id="sex-themes">none</content_attribute>
+  </content_rating>
+  <releases>
+    <release version="1.1.0" date="2026-10-21">
+      <description>
+        <p>First public release for Snap Store.</p>
+        <ul>
+          <li>Native PySide6 IDE with real compiler runs, terminal, LSP, GDB/debugpy debugger</li>
+          <li>Git integration, CMake build system, local Ollama AI panel</li>
+          <li>Open VSX extensions (themes, snippets, grammar subset)</li>
+          <li>Memory visualizer, DSA visualizer, live disassembly, static safety linter</li>
+          <li>Classic confinement snap for full system toolchain access</li>
+        </ul>
+      </description>
+    </release>
+  </releases>
+  <screenshots>
+    <screenshot type="default">
+      <image>https://github.com/Kanak234/medha-ide/raw/main/docs/screenshots/editor.png</image>
+      <caption>C editor with project explorer and integrated terminal running a compiled program</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://github.com/Kanak234/medha-ide/raw/main/docs/screenshots/disassembly.png</image>
+      <caption>Live Disassembly panel showing gcc assembly output for the open file</caption>
+    </screenshot>
+  </screenshots>
+  <provides>
+    <binary>medha-ide</binary>
+  </provides>
+  <suggests>
+    <id>org.gnome.Builder</id>
+    <id>com.visualstudio.code</id>
+    <id>org.kde.kdevelop</id>
+  </suggests>
+  <categories>
+    <category>Development</category>
+    <category>IDE</category>
+  </categories>
+  <keywords>
+    <keyword>IDE</keyword>
+    <keyword>C++</keyword>
+    <keyword>C</keyword>
+    <keyword>Python</keyword>
+    <keyword>debugger</keyword>
+    <keyword>compiler</keyword>
+    <keyword>LSP</keyword>
+    <keyword>Git</keyword>
+    <keyword>CMake</keyword>
+  </keywords>
+</component>

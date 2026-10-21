@@ -9,6 +9,37 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QAction, QIcon, QKeySequence, QTextCursor
 from PySide6.QtCore import Qt, QSize, QPropertyAnimation
 
+
+def get_app_icon_path() -> str:
+    """
+    Return the path to the application icon (medha-icon-256.png).
+    Works both from the source repo and from inside the Snap ($SNAP/app).
+    The snapcraft.yaml dump part ships docs/assets/icon/ to $SNAP/app/docs/assets/icon/.
+    """
+    # Try 1: Relative to this module (medha/app.py -> project root -> docs/assets/icon/)
+    module_dir = os.path.dirname(os.path.abspath(__file__))
+    repo_icon = os.path.join(module_dir, "..", "..", "docs", "assets", "icon", "medha-icon-256.png")
+    repo_icon = os.path.normpath(repo_icon)
+    if os.path.exists(repo_icon):
+        return repo_icon
+
+    # Try 2: Snap environment ($SNAP/app/docs/assets/icon/medha-icon-256.png)
+    snap_root = os.environ.get("SNAP")
+    if snap_root:
+        snap_icon = os.path.join(snap_root, "app", "docs", "assets", "icon", "medha-icon-256.png")
+        if os.path.exists(snap_icon):
+            return snap_icon
+
+    # Try 3: Installed system location (/usr/share/icons/hicolor/256x256/apps/io.github.Kanak234.Medha.png)
+    # This is where the snap desktop integration would place it
+    system_icon = "/usr/share/icons/hicolor/256x256/apps/io.github.Kanak234.Medha.png"
+    if os.path.exists(system_icon):
+        return system_icon
+
+    # Fallback: return the repo path anyway (Qt will handle missing gracefully)
+    return repo_icon
+
+
 from medha.editor import CodeEditorWidget
 from medha.editor_widget import AdvancedCodeEditorWidget, CodeOutlineWidget
 from medha.project_manager import ProjectExplorerWidget
@@ -34,6 +65,11 @@ class MedhaMainWindow(QMainWindow):
         self.workspace_path = workspace_path
         self.setWindowTitle("MEDHĀ IDE — Native PySide6 C/C++ Studio")
         self.resize(1440, 850)
+
+        # Set application window icon (works in repo and in snap)
+        icon_path = get_app_icon_path()
+        if os.path.exists(icon_path):
+            self.setWindowIcon(QIcon(icon_path))
 
         self.active_build_config = "Debug"
         self.workspace_ctrl = HybridWorkspaceController(workspace_path)
@@ -786,10 +822,11 @@ class MedhaMainWindow(QMainWindow):
         super().closeEvent(event)
 
     def show_about_dialog(self):
+        from medha import __version__
         QMessageBox.about(
             self,
             "About MEDHĀ IDE",
-            "<h3>MEDHĀ IDE v1.0.0</h3>"
+            f"<h3>MEDHĀ IDE v{__version__}</h3>"
             "<p>Created by Kanak Prabhakar</p>"
             "<p>Autonomous Native Desktop Development Suite (PySide6 / Qt 6)</p>"
             "<p>Universal DSA Visualizer & Educational Engine Architecture</p>"

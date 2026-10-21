@@ -106,4 +106,5 @@ The logo mark (`medha/assets/logo-mark.svg`) is shown above. If you don't see it
 
 ## License
 
-See [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES).
+MEDHĀ IDE is licensed under **GPL-3.0-or-later**. See [LICENSE](LICENSE) for the full license text.
+Third-party components are listed in [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES).

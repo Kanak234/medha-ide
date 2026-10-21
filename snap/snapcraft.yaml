@@ -1,0 +1,112 @@
+# MEDHA IDE - Snap package definition.
+# WHY classic confinement: MEDHA is an IDE. It runs the user's own toolchain (gcc, g++, gdb,
+# python3, git, cmake, clangd, pylsp, ollama) and a real shell terminal via QProcess.
+# A strict snap cannot execute host programs, so the core feature would break.
+# VS Code / PyCharm / Sublime snaps are classic for the same reason. Classic needs a one-time
+# approval from the Snap Store team (request on forum.snapcraft.io).
+
+name: medha-ide
+title: MEDHA IDE
+summary: Offline-first native IDE for C, C++ and Python
+description: |
+  MEDHA is a native desktop IDE (Python + PySide6/Qt 6). No Electron, no browser.
+  It uses the compilers and tools already on your system:
+  - Multi-tab editor with syntax highlighting and symbol outline
+  - Real compile and run (gcc, g++, python3) with a Problems panel
+  - Integrated terminal (real shell)
+  - LSP (clangd, pylsp), GDB / debugpy debugging, Git, CMake builds
+  - Local AI chat panel through Ollama (optional)
+  - Extensions from Open VSX: color themes, snippets, a grammar subset
+  Everything works offline except searching/downloading extensions.
+  LSP, debugpy and Ollama features need those tools installed on your system.
+license: GPL-3.0-or-later
+contact: kanakprabhakar72@gmail.com
+website: https://github.com/Kanak234/medha-ide
+source-code: https://github.com/Kanak234/medha-ide
+issues: https://github.com/Kanak234/medha-ide/issues
+icon: snap/gui/io.github.Kanak234.Medha.png
+
+base: core24
+confinement: classic
+grade: stable
+# WHY: version comes from medha/__init__.py so the snap and the app never disagree.
+adopt-info: medha-app
+
+# WHY: amd64 only for the first release (smaller risk, faster build). Add arm64 later.
+platforms:
+  amd64:
+
+parts:
+  # Python runtime + pip deps. PySide6 wheels bundle their own Qt 6 libs and plugins,
+  # so we do NOT stage apt Qt packages (mixing them causes version clashes).
+  python-deps:
+    plugin: python
+    source: .
+    python-requirements:
+      - requirements.txt
+    # WHY: in a classic snap the venv must not point at the host python; patchelf + staged
+    # python make $SNAP/bin/python3 self-contained.
+    build-attributes:
+      - enable-patchelf
+    stage-packages:
+      - libpython3.12-minimal
+      - libpython3.12-stdlib
+      - python3.12-minimal
+      - python3.12-venv
+      - python3-minimal
+      # runtime libs the Qt xcb/wayland platform plugins load from the system
+      - libxcb-cursor0
+      - libxcb-icccm4
+      - libxcb-image0
+      - libxcb-keysyms1
+      - libxcb-randr0
+      - libxcb-render-util0
+      - libxcb-shape0
+      - libxcb-xinerama0
+      - libxcb-xkb1
+      - libxkbcommon-x11-0
+      - libegl1
+      - libgl1
+      - libfontconfig1
+      - libdbus-1-3
+
+  # The real app source tree, so medha/ finds docs/assets/icon the same way as in the repo.
+  medha-app:
+    plugin: dump
+    source: .
+    organize:
+      medha: app/medha
+      docs/assets: app/docs/assets
+      LICENSE: app/LICENSE
+    stage:
+      - app/medha
+      - app/docs/assets
+      - app/LICENSE
+    override-pull: |
+      craftctl default
+      # WHERE: read __version__ = "x.y.z" from medha/__init__.py -> snap version
+      VERSION=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' medha/__init__.py)
+      craftctl set version="${VERSION:-1.1.0}"
+
+  launcher:
+    plugin: dump
+    source: snap/local
+    organize:
+      launch-medha: bin/launch-medha
+    stage:
+      - bin/launch-medha
+
+  # AppStream metadata for software centres
+  metainfo:
+    plugin: dump
+    source: packaging
+    organize:
+      io.github.Kanak234.Medha.metainfo.xml: usr/share/metainfo/io.github.Kanak234.Medha.metainfo.xml
+    stage:
+      - usr/share/metainfo/io.github.Kanak234.Medha.metainfo.xml
+
+apps:
+  medha-ide:
+    command: bin/launch-medha
+    desktop: meta/gui/io.github.Kanak234.Medha.desktop
+    common-id: io.github.Kanak234.Medha

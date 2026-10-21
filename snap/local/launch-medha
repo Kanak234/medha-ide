@@ -1,0 +1,12 @@
+#!/bin/sh
+# MEDHA IDE launcher (classic snap).
+# WHY: classic snaps inherit the host PATH, so plain "python3" would be the HOST python
+#      (without PySide6). We must use the snap's own venv python.
+# WHAT: put the app source first on PYTHONPATH and staged xcb/GL libs on LD_LIBRARY_PATH.
+# WHERE: $SNAP/bin/python3 -> python -m medha -> medha/ in $SNAP/app.
+ARCH_TRIPLET="$(uname -m)-linux-gnu"
+export PYTHONPATH="$SNAP/app${PYTHONPATH:+:$PYTHONPATH}"
+export LD_LIBRARY_PATH="$SNAP/usr/lib/$ARCH_TRIPLET${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+# Run from the user's current folder (or home) so MEDHA opens their workspace, not the snap.
+cd "${PWD:-$HOME}" 2>/dev/null || cd "$HOME"
+exec "$SNAP/bin/python3" -m medha "$@"

@@ -1,0 +1,14 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=MEDHĀ IDE
+GenericName=Native C/C++/Python IDE
+Comment=Native PySide6 offline IDE for C/C++/Python — editor, real compiler runs, terminal, LSP, debugger, Git, CMake, local Ollama AI, Open VSX extensions
+Exec=medha-ide
+Icon=io.github.Kanak234.Medha
+Terminal=false
+Categories=Development;IDE;
+Keywords=IDE;C++;C;Python;debugger;compiler;LSP;Git;CMake;
+StartupNotify=true
+StartupWMClass=medha-ide
+MimeType=text/x-csrc;text/x-c++src;text/x-python;text/x-chdr;text/x-c++hdr;text/x-cmake;application/x-shellscript;
