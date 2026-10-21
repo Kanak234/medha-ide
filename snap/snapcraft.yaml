@@ -105,8 +105,20 @@ parts:
     stage:
       - usr/share/metainfo/io.github.Kanak234.Medha.metainfo.xml
 
+  # WHY: the app's `desktop:` path is resolved inside the built snap (prime), and meta/gui
+  # does not exist yet at that point. So we ship the .desktop as a normal file in
+  # usr/share/applications and point `desktop:` there. Icon= still uses ${SNAP}/meta/gui/,
+  # because snapcraft copies snap/gui/*.png into meta/gui when it packs the snap.
+  desktop-entry:
+    plugin: dump
+    source: snap/gui
+    organize:
+      io.github.Kanak234.Medha.desktop: usr/share/applications/io.github.Kanak234.Medha.desktop
+    stage:
+      - usr/share/applications/io.github.Kanak234.Medha.desktop
+
 apps:
   medha-ide:
     command: bin/launch-medha
-    desktop: meta/gui/io.github.Kanak234.Medha.desktop
+    desktop: usr/share/applications/io.github.Kanak234.Medha.desktop
     common-id: io.github.Kanak234.Medha

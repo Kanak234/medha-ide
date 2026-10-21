@@ -58,3 +58,6 @@ htmlcov/
 *.pem
 *.key
 *credentials*
+# snapcraft remote-build logs and outputs
+snapcraft-*.txt
+*.snap
