@@ -42,8 +42,12 @@ parts:
   python-deps:
     plugin: python
     source: .
-    python-requirements:
-      - requirements.txt
+    # WHY: only the small pure deps here. PySide6 goes in its own part below, because
+    # enable-patchelf (needed for this part's python) corrupts Qt plugin metadata
+    # ("libqxcb.so is not a Qt plugin") and the app then cannot open a window.
+    python-packages:
+      - psutil>=7.2.0
+      - requests>=2.34.0
     # WHY: in a classic snap the venv must not point at the host python; patchelf + staged
     # python make $SNAP/bin/python3 self-contained.
     build-attributes:
@@ -70,6 +74,22 @@ parts:
       - libfontconfig1
       - libdbus-1-3
 
+  # PySide6 WITHOUT patchelf. The wheel's .so files already use $ORIGIN rpaths, so they
+  # need no patching. Only PySide6-Essentials: MEDHA uses QtCore/QtGui/QtWidgets/QtNetwork
+  # (checked by grepping imports), which keeps the snap ~3x smaller than full PySide6.
+  # Installed with the build host python3.12 (same as core24) into the venv's site-packages.
+  pyside6:
+    plugin: nil
+    after: [python-deps]
+    build-packages:
+      - python3-pip
+    override-build: |
+      python3 -m pip install --no-compile --break-system-packages \
+        --target "$CRAFT_PART_INSTALL/lib/python3.12/site-packages" \
+        "PySide6-Essentials==6.12.0"
+    stage:
+      - lib/python3.12/site-packages
+
   # The real app source tree, so medha/ finds docs/assets/icon the same way as in the repo.
   medha-app:
     plugin: dump
@@ -82,6 +102,7 @@ parts:
       - app/medha
       - app/docs/assets
       - app/LICENSE
+      - -app/medha/**/__pycache__
     override-pull: |
       craftctl default
       # WHERE: read __version__ = "x.y.z" from medha/__init__.py -> snap version
