@@ -84,7 +84,9 @@ parts:
     build-packages:
       - python3-pip
     override-build: |
-      python3 -m pip install --no-compile --break-system-packages \
+      # WHY /usr/bin/python3.12: inside a part, PATH starts with stage/usr/bin, and the staged
+      # python has no pip. The build host python3.12 (Ubuntu 24.04 = core24, same ABI) does.
+      /usr/bin/python3.12 -m pip install --no-compile --break-system-packages \
         --target "$CRAFT_PART_INSTALL/lib/python3.12/site-packages" \
         "PySide6-Essentials==6.12.0"
     stage:
