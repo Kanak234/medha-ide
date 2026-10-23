@@ -7,7 +7,6 @@ on:
       build_run_id:
         description: Successful snap-strict build run to publish
         required: true
-        default: '39972678135'
       publish_to_store:
         description: Upload and release to Snap Store latest/stable
         type: boolean
@@ -21,7 +20,7 @@ jobs:
     timeout-minutes: 20
     env:
       GH_TOKEN: ${{ github.token }}
-      BUILD_RUN_ID: ${{ inputs.build_run_id || '39972678135' }}
+      BUILD_RUN_ID: ${{ inputs.build_run_id }}
     steps:
       - name: Require successful strict build
         id: source
@@ -57,6 +56,8 @@ jobs:
           assert metadata['confinement'] == 'strict'
           version = str(metadata['version'])
           assert re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', version)
+          reviews = list(pathlib.Path('package').rglob('snap-review.json'))
+          assert len(reviews) == 1 and reviews[0].stat().st_size > 0, 'Missing Canonical Store review evidence'
           evidence = list(pathlib.Path('package').rglob('gui-smoke.json'))
           assert len(evidence) == 1 and json.loads(evidence[0].read_text())['status'] == 'PASS'
           with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
