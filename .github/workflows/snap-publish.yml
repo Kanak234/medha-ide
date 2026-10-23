@@ -71,10 +71,10 @@ jobs:
           cd "$(dirname "$SNAP_FILE")"
           sha256sum "$(basename "$SNAP_FILE")" > SHA256SUMS
           printf 'Strict Snap from successful build %s. Installed compiler and offscreen GUI tests passed. GDB/host-installed tools are not supported by this confined package. Snap Store release is tracked separately.\n' "$BUILD_RUN_ID" > release-notes.txt
-          if ! gh release view "snap-$VERSION" >/dev/null 2>&1; then
-            gh release create "snap-$VERSION" --target "$SOURCE_SHA" --title "MEDHA $VERSION strict Snap" --notes-file release-notes.txt
+          if ! gh release view "snap-$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "snap-$VERSION" --repo "$GITHUB_REPOSITORY" --target "$SOURCE_SHA" --title "MEDHA $VERSION strict Snap" --notes-file release-notes.txt
           fi
-          gh release upload "snap-$VERSION" "$(basename "$SNAP_FILE")" SHA256SUMS --clobber
+          gh release upload "snap-$VERSION" --repo "$GITHUB_REPOSITORY" "$(basename "$SNAP_FILE")" SHA256SUMS --clobber
           printf '## Verified Snap available\n\nhttps://github.com/%s/releases/tag/snap-%s\n\nSource build: %s\n' "$GITHUB_REPOSITORY" "$VERSION" "$BUILD_RUN_ID" >> "$GITHUB_STEP_SUMMARY"
       - name: Require Snap Store publisher credential
         if: github.event_name == 'workflow_dispatch' && inputs.publish_to_store
