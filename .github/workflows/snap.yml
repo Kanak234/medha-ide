@@ -1,0 +1,45 @@
+name: snap-strict
+on:
+  workflow_dispatch:
+  push:
+    branches: [fix/snap-strict-release]
+permissions:
+  contents: read
+jobs:
+  snap:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build strict snap
+        uses: snapcore/action-build@v1
+        id: build
+      - name: Verify confinement and install test package
+        env:
+          SNAP_FILE: ${{ steps.build.outputs.snap }}
+        run: |
+          unsquashfs -cat "$SNAP_FILE" meta/snap.yaml > snap-metadata.yaml
+          grep -qx 'confinement: strict' snap-metadata.yaml
+          sudo snap install --dangerous "$SNAP_FILE"
+      - name: Test bundled compiler and actual GUI under confinement
+        run: |
+          mkdir -p "$HOME/snap/medha-ide/common"
+          timeout 180 snap run medha-ide --selftest
+          export QT_QPA_PLATFORM=offscreen
+          export MEDHA_SMOKE_RESULT="$HOME/snap/medha-ide/common/gui-smoke.json"
+          timeout 180 snap run medha-ide --smoke-gui
+          python3 -c 'import json,os; assert json.load(open(os.environ["MEDHA_SMOKE_RESULT"]))["status"] == "PASS"'
+      - name: Collect test evidence
+        if: always()
+        run: |
+          mkdir -p snap-evidence
+          cp snap-metadata.yaml snap-evidence/ 2>/dev/null || true
+          cp "$HOME"/snap/medha-ide/common/gui-smoke.* snap-evidence/ 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: medha-strict-snap
+          path: |
+            ${{ steps.build.outputs.snap }}
+            snap-evidence/
+          if-no-files-found: warn

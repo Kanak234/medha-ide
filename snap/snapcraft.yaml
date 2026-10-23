@@ -4,7 +4,7 @@
 #   - GCC/G++ 13 + binutils + glibc headers (Ubuntu 24.04 packages, staged below)
 #   - Temurin JDK 25 (same JDK as the Windows build)
 #   - Python 3.12 (already the runtime of the IDE itself)
-# So a strict snap passes the automatic review and is published immediately.
+# The strict package must still pass Store review and runtime tests before release.
 # HOW gcc works inside the sandbox: snap/local/toolwrap/gcc runs gcc-13 --sysroot=$SNAP, so
 # headers and libs come from the snap; glibc itself comes from the core24 base (see the
 # `libc-links` part). Limits of strict: files only under your home folder (not hidden dot
@@ -14,19 +14,20 @@ name: medha-ide
 title: MEDHA IDE
 summary: Offline IDE for C, C++, Java, Python and Turbo C graphics.h
 description: |
-  MEDHA is a native desktop IDE (Python + PySide6/Qt 6). No Electron, no browser.
-  v2: Turbo C mode (graphics.h / conio.h / iostream.h run unchanged in a 640x480
-  panel), Java and Python run, beginner error explanations (English / Hinglish),
-  offline security scan, "Modernize this code" (Turbo -> C11/C++17), 56 lab programs.
-  It uses the compilers and tools already on your system:
+  MEDHA is a native desktop IDE (Python + PySide6/Qt 6) with bundled GCC/G++,
+  Eclipse Temurin JDK 25 and Python for offline C, C++, Java and Python programs.
   - Multi-tab editor with syntax highlighting and symbol outline
-  - Real compile and run (gcc, g++, python3) with a Problems panel
-  - Integrated terminal (real shell)
-  - LSP (clangd, pylsp), GDB / debugpy debugging, Git, CMake builds
-  - Local AI chat panel through Ollama (optional)
-  - Extensions from Open VSX: color themes, snippets, a grammar subset
-  Everything works offline except searching/downloading extensions.
-  LSP, debugpy and Ollama features need those tools installed on your system.
+  - Compile and run with a Problems panel and integrated terminal
+  - Turbo C mode: graphics.h/conio.h in a 640x480 panel
+  - Beginner error explanations in English and Hinglish
+  - Offline security scan, Turbo C modernization and example lab programs
+  - Optional local Ollama AI and Open VSX themes/snippets/grammar data
+  Network access is needed for extension downloads and the optional AI service.
+  This strict snap works with visible files in your home directory. Removable
+  drives require connecting the removable-media interface. Host-installed tools
+  and language servers are not available inside this package, and GDB debugging
+  is not supported by this confined build.
+
 license: GPL-3.0-or-later
 contact: kanakprabhakar72@gmail.com
 website: https://github.com/Kanak234/medha-ide
@@ -150,7 +151,9 @@ parts:
   # (Verified: C + C++ compile and run with host headers hidden, only the sysroot visible.)
   libc-links:
     plugin: nil
-    after: [compilers]
+    # Prime the Python venv first: it creates lib64 -> lib. Creating a real
+    # lib64 directory before that makes python-deps fail with IsADirectoryError.
+    after: [compilers, python-deps]
     override-prime: |
       craftctl default
       for pkg in libc6 libgcc-s1 libstdc++6; do
@@ -204,7 +207,7 @@ apps:
     command: bin/launch-medha
     desktop: usr/share/applications/io.github.Kanak234.Medha.desktop
     common-id: io.github.Kanak234.Medha
-    # All of these auto-connect, so no manual review is triggered.
+    # Standard desktop interfaces; removable-media may need a manual connection.
     plugs:
       - home              # open/save projects in your home folder
       - removable-media   # USB drives (lab PCs)
