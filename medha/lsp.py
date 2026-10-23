@@ -18,7 +18,9 @@ class LspClient:
         cmd = None
         local_bin = os.path.expanduser("~/.local/bin")
         if self.language in ["c", "cpp", "c++"]:
-            clangd_path = shutil.which("clangd") or os.path.join(local_bin, "clangd")
+            # toolchains.py also finds the clangd bundled in the Windows MSIX
+            from medha import toolchains
+            clangd_path = toolchains.find("clangd").path or shutil.which("clangd") or os.path.join(local_bin, "clangd")
             cmd = [clangd_path, "--background-index"]
         elif self.language in ["python", "py"]:
             pylsp_path = shutil.which("pylsp") or shutil.which("pylsp-server") or "pylsp"
@@ -27,7 +29,7 @@ class LspClient:
             cmd = ["clangd"]
 
         env = dict(os.environ)
-        env["PATH"] = f"{local_bin}:{env.get('PATH', '')}"
+        env["PATH"] = os.pathsep.join([local_bin, env.get("PATH", "")])   # ';' on Windows, ':' elsewhere
 
         self.proc = subprocess.Popen(
             cmd,

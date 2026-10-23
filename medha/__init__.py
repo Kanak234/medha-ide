@@ -1,7 +1,18 @@
+"""
+MEDHĀ IDE package.
+
+WHAT:  Package marker + version + one PATH tweak.
+WHY:   pip installs user tools (clangd, pylsp) into ~/.local/bin on Linux, which is
+       often not on PATH for desktop launchers. v1 joined PATH with ':' — that broke
+       PATH on Windows (drive letters contain ':'), so it now uses the OS separator
+       via platform_info.extend_path, and only on Linux/macOS.
+FLOW:  `import medha` (any module) → PATH fixed once → toolchains.py finds tools.
+"""
 import os
 
-local_bin = os.path.expanduser("~/.local/bin")
-if local_bin not in os.environ.get("PATH", ""):
-    os.environ["PATH"] = f"{local_bin}:{os.environ.get('PATH', '')}"
+from medha.platform_info import IS_WINDOWS, extend_path
 
-__version__ = "1.1.0"
+if not IS_WINDOWS:
+    extend_path([os.path.expanduser("~/.local/bin")])
+
+__version__ = "2.0.0"

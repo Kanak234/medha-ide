@@ -1,3 +1,14 @@
+"""
+MEDHĀ IDE — problems.py — Problems panel (compiler errors + how to fix them)
+
+WHAT:  Table of diagnostics from runner.py. v2 adds a "How to fix" column with the
+       beginner explanation from explain.py (English / Hinglish) and a tooltip.
+WHY:   Double-click jumps to the line (like Dev-C++/C-Lite); the explanation is what
+       C-Lite does not have — the raw GCC message alone confuses beginners.
+FLOW:  runner.finished → set_diagnostics() → double-click → problem_selected → app jumps
+"""
+import os
+
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView
 from PySide6.QtCore import Signal, Qt
 from PySide6.QtGui import QColor
@@ -11,9 +22,11 @@ class ProblemsPanelWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
 
         self.table = QTableWidget()
-        self.table.setColumnCount(4)
-        self.table.setHorizontalHeaderLabels(["Severity", "Message", "File", "Line"])
+        self.table.setColumnCount(5)
+        self.table.setHorizontalHeaderLabels(["Severity", "Message", "How to fix", "File", "Line"])
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        self.table.setWordWrap(True)
         self.table.setStyleSheet("""
             QTableWidget {
                 background-color: #090d16;
@@ -45,15 +58,24 @@ class ProblemsPanelWidget(QWidget):
                 item_sev.setForeground(QColor('#d29922'))
 
             item_msg = QTableWidgetItem(diag.message)
-            item_file = QTableWidgetItem(diag.file_path)
+            tip = getattr(diag, "tip", None) or ""
+            item_tip = QTableWidgetItem(tip)
+            item_tip.setForeground(QColor('#7ee787'))
+            notes = getattr(diag, "notes", []) or []
+            item_msg.setToolTip(diag.message + ("\n" + "\n".join(notes) if notes else "") + ("\n\nFix: " + tip if tip else ""))
+            item_tip.setToolTip(tip)
+            item_file = QTableWidgetItem(os.path.basename(diag.file_path or ""))
+            item_file.setToolTip(diag.file_path or "")
             item_line = QTableWidgetItem(str(diag.line))
 
             item_msg.setData(Qt.ItemDataRole.UserRole, (diag.file_path, diag.line, diag.col))
 
             self.table.setItem(row, 0, item_sev)
             self.table.setItem(row, 1, item_msg)
-            self.table.setItem(row, 2, item_file)
-            self.table.setItem(row, 3, item_line)
+            self.table.setItem(row, 2, item_tip)
+            self.table.setItem(row, 3, item_file)
+            self.table.setItem(row, 4, item_line)
+        self.table.resizeRowsToContents()
 
     def on_cell_double_clicked(self, row, col):
         item = self.table.item(row, 1)

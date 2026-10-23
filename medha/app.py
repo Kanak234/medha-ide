@@ -55,15 +55,42 @@ from medha.core.workspace import HybridWorkspaceController
 from medha.dsa_visualizer.dsa_widget import DSAVisualizerWidget
 from medha.dsa_visualizer.tracers.dsa_tracer import UniversalDSATracer
 from medha.extensions.ui.panel import ExtensionsPanel
+# --- MEDHĀ v2 additions -----------------------------------------------------
+# turbo/panel.py   : 640×480 graphics.h / conio.h screen (PRABHA runtime)
+# security.py      : offline beginner security scan (PyraSec rules for code)
+# settings / platform_info : cross-platform paths + user choices (Windows/Linux)
+from medha.turbo.panel import TurboPanel
+from medha.analyzers.security import SecurityPanel, scan_file
+from medha import settings
+from medha import platform_info
+
+
+def default_workspace(path):
+    """Return a folder the student can write to.
+
+    WHY: an MSIX/Store install starts MEDHĀ with the read-only install folder (or
+    C:\\Windows\\System32) as the current directory; writing main.c there crashed v1.
+    FLOW: MedhaMainWindow.__init__ → this → ~/Documents/MEDHA Projects if needed.
+    """
+    try:
+        if path and os.path.isdir(path) and os.access(path, os.W_OK) and \
+                os.path.abspath(path) != os.path.abspath(str(platform_info.app_root())):
+            return path
+    except OSError:
+        pass
+    docs = os.path.join(os.path.expanduser("~"), "Documents")
+    target = os.path.join(docs if os.path.isdir(docs) else os.path.expanduser("~"), "MEDHA Projects")
+    os.makedirs(target, exist_ok=True)
+    return target
 
 
 class MedhaMainWindow(QMainWindow):
     def __init__(self, workspace_path=None):
         super().__init__()
-        if workspace_path is None:
-            workspace_path = os.getcwd()
+        workspace_path = default_workspace(workspace_path or os.getcwd())
         self.workspace_path = workspace_path
-        self.setWindowTitle("MEDHĀ IDE — Native PySide6 C/C++ Studio")
+        from medha import __version__
+        self.setWindowTitle(f"MEDHĀ IDE {__version__} — C · C++ · Java · Python · Turbo C")
         self.resize(1440, 850)
 
         # Set application window icon (works in repo and in snap)
@@ -121,6 +148,10 @@ class MedhaMainWindow(QMainWindow):
         self.bottom_tabs.addTab(self.terminal, "Terminal")
         self.bottom_tabs.addTab(self.problems, "Compiler Output & Issues")
         self.bottom_tabs.addTab(self.safety_panel, "Safety Linter (cppcheck)")
+        # v2: offline security scan of the student's own code (CWE + explanation)
+        self.security_panel = SecurityPanel()
+        self.security_panel.finding_selected.connect(self.navigate_to_problem)
+        self.bottom_tabs.addTab(self.security_panel, "Security")
         self.bottom_tabs.setStyleSheet("""
             QTabWidget::pane {
                 border: 1px solid #21262d;
@@ -197,6 +228,12 @@ class MedhaMainWindow(QMainWindow):
         self.dock_extensions.setWidget(self.extensions_panel)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.dock_extensions)
 
+        # v2: Turbo C screen — graphics.h / conio.h output drawn from the real framebuffer
+        self.turbo_panel = TurboPanel(self)
+        self.dock_turbo = QDockWidget("Turbo C Screen (640×480)", self)
+        self.dock_turbo.setWidget(self.turbo_panel)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.dock_turbo)
+
         # Tabify right dock widgets for clean UI
         self.tabifyDockWidget(self.dock_dsa, self.dock_memory)
         self.tabifyDockWidget(self.dock_memory, self.dock_asm)
@@ -204,6 +241,7 @@ class MedhaMainWindow(QMainWindow):
         self.tabifyDockWidget(self.dock_gdb, self.dock_outline)
         self.tabifyDockWidget(self.dock_outline, self.dock_ai)
         self.tabifyDockWidget(self.dock_ai, self.dock_extensions)
+        self.tabifyDockWidget(self.dock_extensions, self.dock_turbo)
 
         # Dock Fade-in Animations
         self.setup_dock_fade_in(self.dock_explorer)
@@ -214,6 +252,14 @@ class MedhaMainWindow(QMainWindow):
         self.runner = ProcessRunner(self)
         self.runner.output_received.connect(self.on_runner_output)
         self.runner.finished.connect(self.on_runner_finished)
+        # Turbo mode: frames → screen panel, keys from the panel → program stdin
+        self.runner.turbo_started.connect(self.on_turbo_started)
+        self.runner.turbo_frame.connect(self.turbo_panel.on_frame)
+        self.runner.turbo_message.connect(self.turbo_panel.on_message)
+        self.turbo_panel.key_for_program.connect(self.runner.write_stdin)
+        self.turbo_panel.stop_requested.connect(self.runner.stop)
+        # typed terminal lines go to the RUNNING program first (scanf / cin / input())
+        self.terminal.input_override = self.runner.write_stdin
 
         self.build_engine = MultiTargetBuildEngine(self)
         self.build_engine.output_stream.connect(self.on_runner_output)
@@ -298,6 +344,10 @@ class MedhaMainWindow(QMainWindow):
         act_save_as.triggered.connect(self.action_save_as_file)
         file_menu.addAction(act_save_as)
 
+        # v2: Lab Programs — copies a ready example into the workspace and opens it
+        lab_menu = file_menu.addMenu("Open &Lab Program")
+        self.build_lab_menu(lab_menu)
+
         file_menu.addSeparator()
 
         act_exit = QAction("E&xit", self)
@@ -328,6 +378,7 @@ class MedhaMainWindow(QMainWindow):
         view_menu.addAction(self.dock_outline.toggleViewAction())
         view_menu.addAction(self.dock_ai.toggleViewAction())
         view_menu.addAction(self.dock_extensions.toggleViewAction())
+        view_menu.addAction(self.dock_turbo.toggleViewAction())
 
         # Extensions shortcut
         act_extensions = QAction("Extensions", self)
@@ -342,11 +393,21 @@ class MedhaMainWindow(QMainWindow):
         act_run.triggered.connect(self.action_run_active_file)
         run_menu.addAction(act_run)
 
+        act_stop = QAction("&Stop Program", self)
+        act_stop.setShortcut(QKeySequence("Shift+F5"))
+        act_stop.triggered.connect(self.runner_stop)
+        run_menu.addAction(act_stop)
+
         # Analysis Menu
         analyze_menu = menu_bar.addMenu("&Analyze")
         act_lint = QAction("Run &Static Safety Linter (cppcheck)", self)
         act_lint.triggered.connect(self.action_run_linter)
         analyze_menu.addAction(act_lint)
+
+        act_sec = QAction("&Security Scan (offline, CWE)", self)
+        act_sec.setShortcut(QKeySequence("Ctrl+Alt+S"))
+        act_sec.triggered.connect(self.action_security_scan)
+        analyze_menu.addAction(act_sec)
 
         act_disasm = QAction("Inspect &Live Assembly (gcc -S)", self)
         act_disasm.triggered.connect(self.action_run_disassembly)
@@ -422,8 +483,39 @@ class MedhaMainWindow(QMainWindow):
         act_build_proj.triggered.connect(self.action_build_project)
         build_menu.addAction(act_build_proj)
 
+        # Tools Menu (v2)
+        tools_menu = menu_bar.addMenu("&Tools")
+        act_tc = QAction("&Toolchains && Run Settings…", self)
+        act_tc.triggered.connect(self.action_toolchains)
+        tools_menu.addAction(act_tc)
+
+        act_mod = QAction("&Modernize this code (Turbo → C11/C++17)…", self)
+        act_mod.setShortcut(QKeySequence("Ctrl+Alt+M"))
+        act_mod.triggered.connect(self.action_modernize)
+        tools_menu.addAction(act_mod)
+
+        self.act_turbo = QAction("T&urbo mode (graphics.h / conio.h / iostream.h)", self)
+        self.act_turbo.setCheckable(True)
+        self.act_turbo.setChecked(bool(settings.get("turbo_mode", True)))
+        self.act_turbo.toggled.connect(lambda on: settings.set("turbo_mode", on))
+        tools_menu.addAction(self.act_turbo)
+
+        self.act_hinglish = QAction("Explain errors in &Hinglish", self)
+        self.act_hinglish.setCheckable(True)
+        self.act_hinglish.setChecked(settings.get("explain_lang", "en") == "hi")
+        self.act_hinglish.toggled.connect(lambda on: settings.set("explain_lang", "hi" if on else "en"))
+        tools_menu.addAction(self.act_hinglish)
+
         # Help Menu
         help_menu = menu_bar.addMenu("&Help")
+        act_palette = QAction("&Command Palette…", self)
+        act_palette.setShortcut(QKeySequence("Ctrl+Shift+P"))
+        act_palette.triggered.connect(self.show_command_palette)
+        help_menu.addAction(act_palette)
+        act_keys = QAction("&Keyboard Shortcuts", self)
+        act_keys.triggered.connect(self.show_shortcuts)
+        help_menu.addAction(act_keys)
+        help_menu.addSeparator()
         act_about = QAction("&About MEDHĀ IDE", self)
         act_about.triggered.connect(self.show_about_dialog)
         help_menu.addAction(act_about)
@@ -556,7 +648,7 @@ class MedhaMainWindow(QMainWindow):
         if folder:
             self.workspace_path = folder
             self.explorer.set_workspace(folder)
-            self.terminal.process.setWorkingDirectory(folder)
+            self.terminal.set_working_directory(folder)
             self.lbl_status.setText(f"Opened workspace: {folder}")
 
     def action_save_file(self):
@@ -633,7 +725,11 @@ class MedhaMainWindow(QMainWindow):
         lang = "c" if ext in ['.c', '.cpp', '.h', '.hpp'] else "python"
         from medha.lsp import LspClient
         client = LspClient(lang, self.workspace_path)
-        client.start()
+        try:
+            client.start()
+        except OSError:
+            self.lbl_status.setText("Go to Definition needs clangd (C/C++) or pylsp (Python) — see Tools → Toolchains")
+            return
         cursor = editor.textCursor()
         line = cursor.blockNumber() + 1
         col = cursor.columnNumber() + 1
@@ -653,7 +749,11 @@ class MedhaMainWindow(QMainWindow):
         lang = "c" if ext in ['.c', '.cpp', '.h', '.hpp'] else "python"
         from medha.lsp import LspClient
         client = LspClient(lang, self.workspace_path)
-        client.start()
+        try:
+            client.start()
+        except OSError:
+            self.lbl_status.setText("Completion needs clangd (C/C++) or pylsp (Python) — see Tools → Toolchains")
+            return
         cursor = editor.textCursor()
         line = cursor.blockNumber() + 1
         col = cursor.columnNumber() + 1
@@ -670,10 +770,26 @@ class MedhaMainWindow(QMainWindow):
         self.action_save_file()
         ext = os.path.splitext(editor.file_path)[1].lower()
         from medha.debugger import DebugSession
-        if ext in ['.c', '.cpp']:
-            bin_path = os.path.splitext(editor.file_path)[0]
-            cmd = f"gcc -g {editor.file_path} -o {bin_path}"
-            os.system(cmd)
+        if ext in ['.c', '.cpp', '.cc', '.cxx']:
+            # v2: compile with the detected toolchain (bundled MinGW on Windows) into
+            # .medha_build/, with -g -O0 so every line can be stepped. v1 used
+            # os.system("gcc …"), which breaks on paths with spaces and on Windows.
+            import subprocess
+            from medha import toolchains
+            try:
+                cc = toolchains.require("g++" if ext != ".c" else "gcc")
+            except toolchains.ToolMissing as e:
+                QMessageBox.warning(self, "Debugger", str(e))
+                return
+            out_dir = os.path.join(os.path.dirname(editor.file_path), ".medha_build")
+            os.makedirs(out_dir, exist_ok=True)
+            bin_path = os.path.join(out_dir, os.path.splitext(os.path.basename(editor.file_path))[0] + platform_info.EXE)
+            r = subprocess.run([cc, "-g", "-O0", editor.file_path, "-o", bin_path] + (["-lm"] if ext == ".c" else []),
+                               capture_output=True, text=True)
+            if r.returncode != 0:
+                self.terminal.append_output(r.stderr, color="#f85149")
+                self.lbl_status.setText("Debug build failed — fix the errors first")
+                return
             s = DebugSession(bin_path, kind="gdb")
             self.gdb_engine.start_debug(bin_path, kind="gdb")
         else:
@@ -701,9 +817,13 @@ class MedhaMainWindow(QMainWindow):
         stack_vars = []
         heap_allocs = []
         for name, val in variables:
-            stack_vars.append((name, val, "0x7fffffff"))
-            if "0x5555" in val or "0x6000" in val:
-                heap_allocs.append((name, val, "64"))
+            # v1 showed a made-up address "0x7fffffff" for every local and guessed heap
+            # blocks from the value text. GDB's -stack-list-variables gives no address,
+            # so we show "—" instead of inventing one; pointers (0x… values) are listed
+            # as pointing to that address, size unknown.
+            stack_vars.append((name, val, "—"))
+            if val.strip().startswith("0x") and val.strip() != "0x0":
+                heap_allocs.append((name, val.strip().split()[0], "?"))
         if stack_vars:
             self.memory_view.update_memory_map(stack_vars, heap_allocs)
         self.dsa_tracer.parse_gdb_variables(variables)
@@ -745,6 +865,9 @@ class MedhaMainWindow(QMainWindow):
         self.terminal.append_output(text, color=color)
 
     def on_runner_finished(self, exit_code, diagnostics):
+        if self.runner.binary_to_run and getattr(self, "_turbo_active", False):
+            self.turbo_panel.on_finished(exit_code)
+            self._turbo_active = False
         self.problems.set_diagnostics(diagnostics)
         if diagnostics:
             self.bottom_tabs.setCurrentWidget(self.problems)
@@ -771,47 +894,101 @@ class MedhaMainWindow(QMainWindow):
             editor.setTextCursor(cursor)
             editor.setFocus()
 
-    def _on_theme_apply_requested(self, theme):
-        """Handle theme application request from Extensions panel."""
-        from medha.extensions.contributions import map_vscode_theme_to_medha, apply_theme_to_editor
+    # ------------------------------------------------------------------
+    # MEDHĀ v2 actions
+    # ------------------------------------------------------------------
+    def build_lab_menu(self, menu):
+        """File → Open Lab Program: one submenu per folder in examples/.
 
-        # Map theme colors
-        mapped = map_vscode_theme_to_medha(theme)
+        WHY: students should be able to run a classic lab program in one click.
+        FLOW: pick → copy into <workspace>/lab/ (the install folder may be read-only
+        and the student should edit their own copy) → open it in a tab.
+        """
+        root = os.path.join(str(platform_info.app_root()), "examples")
+        groups = [("Turbo C graphics / conio", os.path.join(root, "turboc"))]
+        for lang in ("c", "cpp", "java", "python"):
+            groups.append((lang.upper() if lang != "python" else "Python", os.path.join(root, "lab", lang)))
+        for title, folder in groups:
+            if not os.path.isdir(folder):
+                continue
+            sub = menu.addMenu(title)
+            for name in sorted(os.listdir(folder)):
+                act = QAction(name, self)
+                act.triggered.connect(lambda _=False, f=os.path.join(folder, name): self.open_lab_program(f))
+                sub.addAction(act)
 
-        # Apply to all open editors
-        for i in range(self.tab_widget.count()):
-            editor = self.tab_widget.widget(i)
-            if editor and hasattr(editor, 'highlighter'):
-                apply_theme_to_editor(theme, editor, editor.highlighter)
+    def open_lab_program(self, src):
+        import shutil
+        dest_dir = os.path.join(self.workspace_path, "lab")
+        os.makedirs(dest_dir, exist_ok=True)
+        dest = os.path.join(dest_dir, os.path.basename(src))
+        if not os.path.exists(dest):          # never overwrite the student's edited copy
+            shutil.copyfile(src, dest)
+        self.open_file_path(dest)
 
-        # Update main window palette
-        palette = mapped["palette"]
-        if palette:
-            # Apply to application palette
-            from PySide6.QtGui import QPalette, QColor
-            app_palette = self.palette()
+    def runner_stop(self):
+        self.runner.stop()
+        self.lbl_status.setText("Program stopped")
 
-            # Map key colors
-            if "editor_bg" in palette:
-                app_palette.setColor(QPalette.ColorRole.Base, QColor(palette["editor_bg"]))
-                app_palette.setColor(QPalette.ColorRole.Window, QColor(palette["editor_bg"]))
-            if "editor_fg" in palette:
-                app_palette.setColor(QPalette.ColorRole.Text, QColor(palette["editor_fg"]))
-                app_palette.setColor(QPalette.ColorRole.WindowText, QColor(palette["editor_fg"]))
-            if "editor_selection" in palette:
-                app_palette.setColor(QPalette.ColorRole.Highlight, QColor(palette["editor_selection"]))
-                app_palette.setColor(QPalette.ColorRole.HighlightedText, QColor(palette.get("editor_fg", "#ffffff")))
+    def on_turbo_started(self, uses_panel):
+        self._turbo_active = True
+        if uses_panel:
+            self.dock_turbo.show()
+            self.dock_turbo.raise_()
+        self.turbo_panel.on_started(uses_panel)
 
-            self.setPalette(app_palette)
-            # Also apply to all child widgets
-            for widget in self.findChildren(QWidget):
-                widget.setPalette(app_palette)
+    def action_security_scan(self):
+        editor = self.get_current_editor()
+        if not editor or not editor.file_path:
+            self.lbl_status.setText("Save the file first, then run Security Scan")
+            return
+        self.action_save_file()
+        findings = scan_file(editor.file_path, settings.get("explain_lang", "en"))
+        self.security_panel.set_findings(findings, editor.file_path)
+        self.bottom_tabs.setCurrentWidget(self.security_panel)
 
-        self.lbl_status.setText(f"Applied theme: {theme.name}")
+    def action_toolchains(self):
+        from medha.toolchains_dialog import ToolchainsDialog
+        if ToolchainsDialog(self).exec():
+            self.act_turbo.setChecked(bool(settings.get("turbo_mode", True)))
+            self.act_hinglish.setChecked(settings.get("explain_lang", "en") == "hi")
+            self.lbl_status.setText("Toolchain settings saved")
+
+    def action_modernize(self):
+        editor = self.get_current_editor()
+        if not editor:
+            return
+        from medha.modernize_dialog import ModernizeDialog
+        name = os.path.basename(editor.file_path) if editor.file_path else "untitled.cpp"
+        if os.path.splitext(name)[1].lower() not in (".c", ".cpp", ".cc", ".cxx", ".h", ".hpp"):
+            QMessageBox.information(self, "Modernize", "Modernize works on C and C++ files (Turbo C / Turbo C++ code).")
+            return
+        dlg = ModernizeDialog(editor.toPlainText(), name, settings.get("explain_lang", "en"), self)
+        if dlg.exec() and dlg.result_code is not None:
+            if dlg.mode == "replace":
+                cursor = editor.textCursor()
+                cursor.beginEditBlock()        # one Ctrl+Z restores the Turbo version
+                cursor.select(QTextCursor.SelectionType.Document)
+                cursor.insertText(dlg.result_code)
+                cursor.endEditBlock()
+            else:
+                base, ext = os.path.splitext(name)
+                self.create_untitled_tab(f"{base}_modern{ext}", dlg.result_code)
+
+    def show_command_palette(self):
+        from medha.command_palette import CommandPalette, collect_actions
+        dlg = CommandPalette(collect_actions(self.menuBar()), self)
+        geo = self.geometry()
+        dlg.move(geo.x() + (geo.width() - dlg.width()) // 2, geo.y() + 80)
+        dlg.exec()
+
+    def show_shortcuts(self):
+        from medha.command_palette import ShortcutsDialog, collect_actions
+        ShortcutsDialog(collect_actions(self.menuBar()), self).exec()
 
     def closeEvent(self, event):
         if hasattr(self, 'terminal') and self.terminal:
-            self.terminal.close()
+            self.terminal.shutdown()
         if hasattr(self, 'runner') and self.runner and hasattr(self.runner, 'process'):
             if self.runner.process.state() != 0:
                 self.runner.process.terminate()
@@ -823,14 +1000,23 @@ class MedhaMainWindow(QMainWindow):
 
     def show_about_dialog(self):
         from medha import __version__
-        QMessageBox.about(
-            self,
-            "About MEDHĀ IDE",
-            f"<h3>MEDHĀ IDE v{__version__}</h3>"
-            "<p>Created by Kanak Prabhakar</p>"
-            "<p>Autonomous Native Desktop Development Suite (PySide6 / Qt 6)</p>"
-            "<p>Universal DSA Visualizer & Educational Engine Architecture</p>"
-        )
+        from medha import toolchains
+        box = QMessageBox(self)
+        box.setWindowTitle("About MEDHĀ IDE")
+        # Kanak's KP orbit logo (docs/assets/logo-mark.svg) is the watermark of every project
+        logo = os.path.join(str(platform_info.app_root()), "docs", "assets", "logo-mark.svg")
+        if os.path.exists(logo):
+            from PySide6.QtGui import QPixmap
+            box.setIconPixmap(QIcon(logo).pixmap(96, 96))
+        gcc = toolchains.find("gcc")
+        box.setText(
+            f"<h3>MEDHĀ IDE {__version__}</h3>"
+            "<p>Created by <b>Kanak Prabhakar</b> · Cooding with Kanak</p>"
+            "<p>Offline IDE for C, C++, Java and Python with Turbo C graphics.h mode, "
+            "debugger, beginner error explanations, security scan and visualizers.</p>"
+            f"<p><small>Compiler: {gcc.version or 'not found'}<br>"
+            f"Platform: {sys.platform} · Settings: {settings.settings_path()}</small></p>")
+        box.exec()
 
     def _on_theme_apply_requested(self, colors: dict):
         """Handle theme apply request from Extensions panel."""

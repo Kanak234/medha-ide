@@ -7,9 +7,12 @@
 
 name: medha-ide
 title: MEDHA IDE
-summary: Offline-first native IDE for C, C++ and Python
+summary: Offline IDE for C, C++, Java, Python and Turbo C graphics.h
 description: |
   MEDHA is a native desktop IDE (Python + PySide6/Qt 6). No Electron, no browser.
+  v2: Turbo C mode (graphics.h / conio.h / iostream.h run unchanged in a 640x480
+  panel), Java and Python run, beginner error explanations (English / Hinglish),
+  offline security scan, "Modernize this code" (Turbo -> C11/C++17), 56 lab programs.
   It uses the compilers and tools already on your system:
   - Multi-tab editor with syntax highlighting and symbol outline
   - Real compile and run (gcc, g++, python3) with a Problems panel
@@ -100,8 +103,10 @@ parts:
       medha: app/medha
       docs/assets: app/docs/assets
       LICENSE: app/LICENSE
+      examples: app/examples
     stage:
       - app/medha
+      - app/examples
       - app/docs/assets
       - app/LICENSE
       - -app/medha/**/__pycache__

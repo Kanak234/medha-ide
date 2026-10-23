@@ -20,10 +20,13 @@ class DebugSession:
 
     def start(self) -> None:
         if self.kind == "gdb":
-            gdb_path = shutil.which("gdb") or "/usr/bin/gdb"
+            # toolchains.py: settings → bundled MinGW gdb (Windows) → PATH
+            from medha import toolchains
+            gdb_path = toolchains.find("gdb").path or shutil.which("gdb") or "gdb"
             cmd = [gdb_path, "--interpreter=mi2", self.target]
             self.proc = subprocess.Popen(
                 cmd,
+                creationflags=0x08000000 if os.name == "nt" else 0,   # no console flash on Windows
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,
@@ -37,7 +40,11 @@ class DebugSession:
             self.port = s.getsockname()[1]
             s.close()
 
-            cmd = [sys.executable, "-m", "debugpy", "--listen", f"127.0.0.1:{self.port}", "--wait-for-client", self.target]
+            # In a frozen (MSIX/PyInstaller) build sys.executable is MEDHA.exe, not
+            # Python — use the detected Python interpreter instead.
+            from medha import toolchains
+            py = toolchains.find("python").path or sys.executable
+            cmd = [py, "-m", "debugpy", "--listen", f"127.0.0.1:{self.port}", "--wait-for-client", self.target]
             self.proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
             connected = False

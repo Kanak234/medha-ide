@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  MEDHĀ IDE — MSIX manifest (Microsoft Store, free Individual developer account).
+  WHAT: describes the packaged Win32 app (MEDHA.exe) to Windows and the Store.
+  WHY placeholders: Identity Name / Publisher / PublisherDisplayName MUST be copied
+       from Partner Center → your app → Product identity. Wrong values = Store rejects
+       the upload, so they are never guessed. build_msix.ps1 replaces __VERSION__.
+  runFullTrust: required for a classic desktop (Win32) app; nothing else is requested.
+-->
+<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+         xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+         xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+         IgnorableNamespaces="uap rescap">
+  <Identity Name="__PARTNER_CENTER_IDENTITY_NAME__"
+            Publisher="__PARTNER_CENTER_PUBLISHER_CN__"
+            Version="__VERSION__"
+            ProcessorArchitecture="x64" />
+  <Properties>
+    <DisplayName>MEDHĀ IDE</DisplayName>
+    <PublisherDisplayName>__PUBLISHER_DISPLAY_NAME__</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+  <Resources>
+    <Resource Language="en-us" />
+  </Resources>
+  <Applications>
+    <Application Id="MEDHA" Executable="MEDHA\MEDHA.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements DisplayName="MEDHĀ IDE"
+                          Description="Offline IDE for C, C++, Java and Python with Turbo C graphics.h mode"
+                          BackgroundColor="transparent"
+                          Square150x150Logo="Assets\Square150x150Logo.png"
+                          Square44x44Logo="Assets\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" Square310x310Logo="Assets\Square310x310Logo.png" />
+      </uap:VisualElements>
+      <Extensions>
+        <uap:Extension Category="windows.fileTypeAssociation">
+          <uap:FileTypeAssociation Name="medhasource">
+            <uap:SupportedFileTypes>
+              <uap:FileType>.c</uap:FileType><uap:FileType>.cpp</uap:FileType>
+              <uap:FileType>.java</uap:FileType><uap:FileType>.py</uap:FileType>
+            </uap:SupportedFileTypes>
+          </uap:FileTypeAssociation>
+        </uap:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>
