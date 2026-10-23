@@ -1,0 +1,95 @@
+name: snap-publish
+on:
+  push:
+    branches: [release/snap-publish]
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: Successful snap-strict build run to publish
+        required: true
+        default: '39972678135'
+      publish_to_store:
+        description: Upload and release to Snap Store latest/stable
+        type: boolean
+        default: true
+permissions:
+  actions: read
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BUILD_RUN_ID: ${{ inputs.build_run_id || '39972678135' }}
+    steps:
+      - name: Require successful strict build
+        id: source
+        run: |
+          [[ "$BUILD_RUN_ID" =~ ^[0-9]+$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN_ID" > source-run.json
+          python3 - <<'PY'
+          import json, os
+          run = json.load(open('source-run.json'))
+          assert run['conclusion'] == 'success', 'Source build did not pass'
+          assert run['path'] == '.github/workflows/snap.yml', 'Not a snap-strict build'
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write('sha=' + run['head_sha'] + '\n')
+          PY
+      - uses: actions/download-artifact@v4
+        with:
+          name: medha-strict-snap
+          run-id: ${{ env.BUILD_RUN_ID }}
+          github-token: ${{ github.token }}
+          path: package
+      - name: Verify package identity and test evidence
+        id: package
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y squashfs-tools python3-yaml
+          python3 - <<'PY'
+          import json, os, pathlib, re, subprocess, yaml
+          snaps = list(pathlib.Path('package').rglob('*.snap'))
+          assert len(snaps) == 1, 'Expected exactly one Snap package'
+          snap = snaps[0]
+          metadata = yaml.safe_load(subprocess.check_output(['unsquashfs', '-cat', str(snap), 'meta/snap.yaml']))
+          assert metadata['name'] == 'medha-ide'
+          assert metadata['confinement'] == 'strict'
+          version = str(metadata['version'])
+          assert re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', version)
+          evidence = list(pathlib.Path('package').rglob('gui-smoke.json'))
+          assert len(evidence) == 1 and json.loads(evidence[0].read_text())['status'] == 'PASS'
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f'snap={snap}\nversion={version}\n')
+          PY
+      - name: Publish verified package on GitHub
+        env:
+          SNAP_FILE: ${{ steps.package.outputs.snap }}
+          VERSION: ${{ steps.package.outputs.version }}
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+        run: |
+          cd "$(dirname "$SNAP_FILE")"
+          sha256sum "$(basename "$SNAP_FILE")" > SHA256SUMS
+          printf 'Strict Snap from successful build %s. Installed compiler and offscreen GUI tests passed. GDB/host-installed tools are not supported by this confined package. Snap Store release is tracked separately.\n' "$BUILD_RUN_ID" > release-notes.txt
+          if ! gh release view "snap-$VERSION" >/dev/null 2>&1; then
+            gh release create "snap-$VERSION" --target "$SOURCE_SHA" --title "MEDHA $VERSION strict Snap" --notes-file release-notes.txt
+          fi
+          gh release upload "snap-$VERSION" "$(basename "$SNAP_FILE")" SHA256SUMS --clobber
+          printf '## Verified Snap available\n\nhttps://github.com/%s/releases/tag/snap-%s\n\nSource build: %s\n' "$GITHUB_REPOSITORY" "$VERSION" "$BUILD_RUN_ID" >> "$GITHUB_STEP_SUMMARY"
+      - name: Require Snap Store publisher credential
+        if: github.event_name == 'workflow_dispatch' && inputs.publish_to_store
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+        run: |
+          if [ -z "$SNAPCRAFT_STORE_CREDENTIALS" ]; then
+            echo '::error::Add the medha-ide scoped SNAPCRAFT_STORE_CREDENTIALS repository secret. GitHub access alone cannot authorize a Snap Store upload.'
+            exit 1
+          fi
+      - name: Release to Snap Store stable
+        if: github.event_name == 'workflow_dispatch' && inputs.publish_to_store
+        uses: snapcore/action-publish@v1
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+        with:
+          snap: ${{ steps.package.outputs.snap }}
+          release: stable
