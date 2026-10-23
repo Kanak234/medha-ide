@@ -3,11 +3,7 @@
 # FLOW: icons → PyInstaller one-folder → --selftest (real compile with bundled GCC)
 #       → layout + AppxManifest (version from medha/__init__.py) → makeappx pack → zip
 $ErrorActionPreference = "Stop"
-# Partner Center → Product identity values come from GitHub repo variables
-# (MSIX_IDENTITY_NAME, MSIX_PUBLISHER, MSIX_PUBLISHER_DISPLAY) — never guessed.
-foreach ($v in "MSIX_IDENTITY_NAME","MSIX_PUBLISHER","MSIX_PUBLISHER_DISPLAY") {
-  if (-not (Get-Item "env:$v" -ErrorAction SilentlyContinue)) { throw "Set repo variable $v (Partner Center → Product identity)" }
-}
+# Identity values are in AppxManifest.xml (copied from Partner Center → Product identity).
 $root = Resolve-Path "$PSScriptRoot\..\.."
 Set-Location $root
 $ver = (python -c "import medha;print(medha.__version__)").Trim()
@@ -20,7 +16,7 @@ python -m PyInstaller --noconfirm --distpath dist packaging\windows\medha_window
 & dist\MEDHA\MEDHA.exe --selftest | Tee-Object -Variable st
 if ($LASTEXITCODE -ne 0) { throw "MEDHA.exe --selftest failed" }
 Copy-Item -Recurse dist\MEDHA "$layout\MEDHA"
-(Get-Content packaging\windows\AppxManifest.xml -Raw).Replace("__VERSION__", $msixVer).Replace("__PARTNER_CENTER_IDENTITY_NAME__", $env:MSIX_IDENTITY_NAME).Replace("__PARTNER_CENTER_PUBLISHER_CN__", $env:MSIX_PUBLISHER).Replace("__PUBLISHER_DISPLAY_NAME__", $env:MSIX_PUBLISHER_DISPLAY) | Set-Content "$layout\AppxManifest.xml" -Encoding utf8
+(Get-Content packaging\windows\AppxManifest.xml -Raw).Replace("__VERSION__", $msixVer) | Set-Content "$layout\AppxManifest.xml" -Encoding utf8
 $makeappx = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\makeappx.exe" | Sort-Object FullName -Descending | Select-Object -First 1
 & $makeappx.FullName pack /d $layout /p "dist\MEDHA-$ver.msix" /o
 if ($LASTEXITCODE -ne 0) { throw "makeappx failed" }
