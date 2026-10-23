@@ -15,4 +15,4 @@ from medha.platform_info import IS_WINDOWS, extend_path
 if not IS_WINDOWS:
     extend_path([os.path.expanduser("~/.local/bin")])
 
-__version__ = "2.0.0"
+__version__ = "2.0.1"

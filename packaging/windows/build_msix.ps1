@@ -29,6 +29,13 @@ New-Item -ItemType Directory -Force "$layout\Assets" | Out-Null
 Run "icons" { python packaging\windows\make_icons.py docs\assets\logo-mark.svg "$layout\Assets" }
 Run "PyInstaller build" { python -m PyInstaller --noconfirm --distpath dist packaging\windows\medha_windows.spec }
 Run "MEDHA.exe --selftest" { & dist\MEDHA\MEDHA.exe --selftest }
+# A compiler self-test does not import or construct the main window. Test the
+# windowed frozen executable too, from a system directory (Store-like launch).
+$env:MEDHA_SMOKE_RESULT = Join-Path $root "dist\gui-smoke.json"
+$gui = Start-Process -FilePath "$root\dist\MEDHA\MEDHA.exe" -ArgumentList "--smoke-gui" -WorkingDirectory $env:WINDIR -PassThru
+if (-not $gui.WaitForExit(120000)) { $gui.Kill(); throw "GUI startup timed out" }
+if ($gui.ExitCode -ne 0 -or -not (Test-Path $env:MEDHA_SMOKE_RESULT)) { throw "GUI startup failed (exit $($gui.ExitCode))" }
+if ((Get-Content $env:MEDHA_SMOKE_RESULT -Raw | ConvertFrom-Json).status -ne "PASS") { throw "GUI smoke test failed" }
 Copy-Item -Recurse dist\MEDHA "$layout\MEDHA"
 (Get-Content packaging\windows\AppxManifest.xml -Raw).Replace("__VERSION__", $msixVer) | Set-Content "$layout\AppxManifest.xml" -Encoding utf8
 # MSIX rejects some file names (makeappx error 0x8007007b). Drop NSIS/7z leftovers

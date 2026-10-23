@@ -59,6 +59,9 @@ def selftest() -> int:
 
 
 def main():
+    if "--smoke-gui" in sys.argv:
+        from medha.smoke_gui import run
+        return run()
     if "--version" in sys.argv:
         from medha import __version__
         print(__version__)
@@ -75,7 +78,7 @@ def main():
     app.setApplicationName("MEDHĀ IDE")
     app.setDesktopFileName("io.github.Kanak234.Medha")
     app.setOrganizationName("MEDHA")
-    window = MedhaMainWindow(workspace_path=os.getcwd())
+    window = MedhaMainWindow()
     window.show()
     return app.exec()
 
