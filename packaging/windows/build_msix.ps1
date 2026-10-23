@@ -31,6 +31,11 @@ Run "PyInstaller build" { python -m PyInstaller --noconfirm --distpath dist pack
 Run "MEDHA.exe --selftest" { & dist\MEDHA\MEDHA.exe --selftest }
 Copy-Item -Recurse dist\MEDHA "$layout\MEDHA"
 (Get-Content packaging\windows\AppxManifest.xml -Raw).Replace("__VERSION__", $msixVer) | Set-Content "$layout\AppxManifest.xml" -Encoding utf8
+# MSIX rejects some file names (makeappx error 0x8007007b). Drop NSIS/7z leftovers
+# whose names start with '$', then report any remaining name outside the safe set.
+Get-ChildItem $layout -Recurse -Force | Where-Object { $_.Name -like '$*' } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+$bad = Get-ChildItem $layout -Recurse -Force | Where-Object { $_.Name -notmatch '^[A-Za-z0-9_.\- ()+~@,=\[\]]+$' -or $_.Name -match '[. ]$' -or $_.Name -match '^(CON|PRN|AUX|NUL|COM\d|LPT\d)(\..*)?$' }
+if ($bad) { Write-Host ("::warning title=Unusual file names in package::" + (($bad | ForEach-Object { $_.FullName.Substring($layout.Length) }) -join "%0A")) }
 $makeappx = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\makeappx.exe" | Sort-Object FullName -Descending | Select-Object -First 1
 Run "makeappx pack" { & $makeappx.FullName pack /v /d $layout /p "dist\MEDHA-$ver.msix" /o }
 Compress-Archive -Path dist\MEDHA -DestinationPath "dist\MEDHA-$ver-portable.zip" -Force
