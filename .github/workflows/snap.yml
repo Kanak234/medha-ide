@@ -2,7 +2,7 @@ name: snap-strict
 on:
   workflow_dispatch:
   push:
-    branches: [fix/snap-strict-release]
+    branches: [fix/snap-external-links]
 permissions:
   contents: read
 jobs:
@@ -14,6 +14,14 @@ jobs:
       - name: Build strict snap
         uses: snapcore/action-build@v1
         id: build
+      - name: Check package with Canonical Store review tools
+        env:
+          SNAP_FILE: ${{ steps.build.outputs.snap }}
+        run: |
+          sudo snap install review-tools
+          mkdir -p "$HOME/snap/review-tools/common"
+          cp "$SNAP_FILE" "$HOME/snap/review-tools/common/medha.snap"
+          review-tools.snap-review "$HOME/snap/review-tools/common/medha.snap" --json > snap-review.json
       - name: Verify confinement and install test package
         env:
           SNAP_FILE: ${{ steps.build.outputs.snap }}
@@ -29,11 +37,20 @@ jobs:
           export MEDHA_SMOKE_RESULT="$HOME/snap/medha-ide/common/gui-smoke.json"
           timeout 180 snap run medha-ide --smoke-gui
           python3 -c 'import json,os; assert json.load(open(os.environ["MEDHA_SMOKE_RESULT"]))["status"] == "PASS"'
+      - name: Test C++ shared runtime inside confinement
+        run: |
+          cat > "$HOME/snap/medha-ide/common/cpp-runtime.cpp" <<'CPP'
+          #include <iostream>
+          #include <stdexcept>
+          int main() { try { throw std::runtime_error("CPP_RUNTIME_PASS"); } catch (const std::exception& e) { std::cout << e.what() << std::endl; } }
+          CPP
+          snap run --shell medha-ide -c '"$SNAP/toolwrap/g++" "$SNAP_USER_COMMON/cpp-runtime.cpp" -o "$SNAP_USER_COMMON/cpp-runtime" && "$SNAP_USER_COMMON/cpp-runtime"' | tee cpp-runtime.log
+          grep -qx CPP_RUNTIME_PASS cpp-runtime.log
       - name: Collect test evidence
         if: always()
         run: |
           mkdir -p snap-evidence
-          cp snap-metadata.yaml snap-evidence/ 2>/dev/null || true
+          cp snap-metadata.yaml snap-review.json cpp-runtime.log snap-evidence/ 2>/dev/null || true
           cp "$HOME"/snap/medha-ide/common/gui-smoke.* snap-evidence/ 2>/dev/null || true
       - uses: actions/upload-artifact@v4
         if: always()

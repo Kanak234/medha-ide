@@ -143,27 +143,32 @@ parts:
       - libstdc++6
       - make
 
-  # glibc runtime files are part of the core24 base, so snapcraft does NOT stage them.
-  # But `gcc --sysroot=$SNAP` makes the linker look for e.g. /lib/x86_64-linux-gnu/libm.so.6
-  # INSIDE $SNAP. WHAT this part does: for every runtime .so of libc6 / libgcc-s1 / libstdc++6
-  # that is not already in the snap, add an absolute symlink pointing to the same path.
-  # Inside the snap's mount namespace "/" IS core24, so the link resolves to the base's copy.
-  # (Verified: C + C++ compile and run with host headers hidden, only the sysroot visible.)
+  # GCC's sysroot needs the core24 libc linker targets. Only libc runtime
+  # targets may point into the base. Bundle GCC/C++ runtimes, and omit gconv
+  # module aliases (the running libc already loads those from the base).
   libc-links:
     plugin: nil
-    # Prime the Python venv first: it creates lib64 -> lib. Creating a real
-    # lib64 directory before that makes python-deps fail with IsADirectoryError.
+    # The Python venv must prime lib64 -> lib before these linker aliases.
     after: [compilers, python-deps]
     override-prime: |
       craftctl default
       for pkg in libc6 libgcc-s1 libstdc++6; do
         dpkg -L "$pkg" 2>/dev/null | grep -E '^/(usr/)?lib(64)?/.*\.so[.0-9]*$' | while read -r f; do
-          # WHY both paths: noble ships glibc in /usr/lib, but libc6-dev's linker scripts
-          # (libc.so, libm.so) still name /lib/x86_64-linux-gnu/... and /lib64/ld-linux...
+          case "$f" in */gconv/*) continue ;; esac
+          if [ "$pkg" != libc6 ] && [ ! -e "$CRAFT_PRIME$f" ]; then
+            mkdir -p "$(dirname "$CRAFT_PRIME$f")"
+            cp -L "$f" "$CRAFT_PRIME$f"
+          fi
+          # Noble uses /usr/lib; glibc linker scripts also reference /lib.
           for t in "$f" "${f#/usr}"; do
             [ -e "$CRAFT_PRIME$t" ] || [ -L "$CRAFT_PRIME$t" ] && continue
             mkdir -p "$(dirname "$CRAFT_PRIME$t")"
-            ln -s "$f" "$CRAFT_PRIME$t"
+            if [ "$pkg" = libc6 ]; then
+              ln -s "$f" "$CRAFT_PRIME$t"
+            else
+              target=$(realpath --relative-to="$(dirname "$CRAFT_PRIME$t")" "$CRAFT_PRIME$f")
+              ln -s "$target" "$CRAFT_PRIME$t"
+            fi
           done
         done
       done
