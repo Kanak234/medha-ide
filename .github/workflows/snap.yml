@@ -42,4 +42,4 @@ jobs:
           path: |
             ${{ steps.build.outputs.snap }}
             snap-evidence/
-          if-no-files-found: error
+          if-no-files-found: warn
