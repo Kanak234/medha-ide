@@ -72,22 +72,47 @@ def default_workspace(path):
     C:\\Windows\\System32) as the current directory; writing main.c there crashed v1.
     FLOW: MedhaMainWindow.__init__ → this → ~/Documents/MEDHA Projects if needed.
     """
-    try:
-        if path and os.path.isdir(path) and os.access(path, os.W_OK) and \
-                os.path.abspath(path) != os.path.abspath(str(platform_info.app_root())):
-            return path
-    except OSError:
-        pass
-    docs = os.path.join(os.path.expanduser("~"), "Documents")
-    target = os.path.join(docs if os.path.isdir(docs) else os.path.expanduser("~"), "MEDHA Projects")
-    os.makedirs(target, exist_ok=True)
-    return target
+    import tempfile
+    from pathlib import Path
+
+    def writable(folder):
+        try:
+            folder = Path(folder).resolve()
+            install = platform_info.app_root().resolve()
+            if folder == install or install in folder.parents:
+                return False
+            if platform_info.IS_WINDOWS:
+                windows = Path(os.environ.get("WINDIR", r"C:\Windows")).resolve()
+                if folder == windows or windows in folder.parents:
+                    return False
+            # os.access(W_OK) does not reliably check Windows ACLs. Exercise an
+            # actual write before selecting a folder for the welcome file.
+            with tempfile.TemporaryFile(dir=folder):
+                pass
+            return True
+        except OSError:
+            return False
+
+    if path and writable(path):
+        return str(Path(path).resolve())
+    docs = Path.home() / "Documents"
+    candidates = [(docs if docs.is_dir() else Path.home()) / "MEDHA Projects",
+                  platform_info.user_data_dir() / "Projects"]
+    for target in candidates:
+        try:
+            target.mkdir(parents=True, exist_ok=True)
+            if writable(target):
+                return str(target)
+        except OSError:
+            continue
+    raise OSError("No writable MEDHA workspace is available")
+
 
 
 class MedhaMainWindow(QMainWindow):
     def __init__(self, workspace_path=None):
         super().__init__()
-        workspace_path = default_workspace(workspace_path or os.getcwd())
+        workspace_path = default_workspace(workspace_path if workspace_path is not None else (None if platform_info.IS_FROZEN else os.getcwd()))
         self.workspace_path = workspace_path
         from medha import __version__
         self.setWindowTitle(f"MEDHĀ IDE {__version__} — C · C++ · Java · Python · Turbo C")
