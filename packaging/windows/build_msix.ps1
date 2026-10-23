@@ -32,7 +32,6 @@ Run "MEDHA.exe --selftest" { & dist\MEDHA\MEDHA.exe --selftest }
 Copy-Item -Recurse dist\MEDHA "$layout\MEDHA"
 (Get-Content packaging\windows\AppxManifest.xml -Raw).Replace("__VERSION__", $msixVer) | Set-Content "$layout\AppxManifest.xml" -Encoding utf8
 $makeappx = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\makeappx.exe" | Sort-Object FullName -Descending | Select-Object -First 1
-& $makeappx.FullName pack /d $layout /p "dist\MEDHA-$ver.msix" /o
-if ($LASTEXITCODE -ne 0) { throw "makeappx failed" }
+Run "makeappx pack" { & $makeappx.FullName pack /v /d $layout /p "dist\MEDHA-$ver.msix" /o }
 Compress-Archive -Path dist\MEDHA -DestinationPath "dist\MEDHA-$ver-portable.zip" -Force
 Get-ChildItem dist\*.msix, dist\*.zip | ForEach-Object { "{0}  {1:N1} MB" -f $_.Name, ($_.Length / 1MB) }
