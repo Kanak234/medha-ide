@@ -1,12 +1,15 @@
 #!/bin/sh
-# MEDHA IDE launcher (classic snap).
-# WHY: classic snaps inherit the host PATH, so plain "python3" would be the HOST python
-#      (without PySide6). We must use the snap's own venv python.
-# WHAT: put the app source first on PYTHONPATH and staged xcb/GL libs on LD_LIBRARY_PATH.
+# MEDHA IDE launcher (strict snap).
+# WHAT: run the IDE with the snap's own Python + Qt, and make the bundled compilers the ones
+#       MEDHA finds on PATH (toolchains.py checks PATH after Settings / bundled folders).
 # WHERE: $SNAP/bin/python3 -> python -m medha -> medha/ in $SNAP/app.
 ARCH_TRIPLET="$(uname -m)-linux-gnu"
 export PYTHONPATH="$SNAP/app${PYTHONPATH:+:$PYTHONPATH}"
 export LD_LIBRARY_PATH="$SNAP/usr/lib/$ARCH_TRIPLET${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-# Run from the user's current folder (or home) so MEDHA opens their workspace, not the snap.
-cd "${PWD:-$HOME}" 2>/dev/null || cd "$HOME"
+# WHY toolwrap first: gcc/g++ wrappers add --sysroot=$SNAP (see snap/local/toolwrap/gcc).
+# WHY jdk/bin: bundled Temurin JDK 25 (javac + java).
+export JAVA_HOME="$SNAP/jdk"
+export PATH="$SNAP/toolwrap:$JAVA_HOME/bin:$SNAP/usr/bin:$SNAP/bin:$PATH"
+# Open in the user's REAL home (strict snaps set $HOME to ~/snap/medha-ide/<rev>).
+cd "${SNAP_REAL_HOME:-$HOME}" 2>/dev/null || cd "$HOME"
 exec "$SNAP/bin/python3" -m medha "$@"

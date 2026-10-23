@@ -1,9 +1,14 @@
 # MEDHA IDE - Snap package definition.
-# WHY classic confinement: MEDHA is an IDE. It runs the user's own toolchain (gcc, g++, gdb,
-# python3, git, cmake, clangd, pylsp, ollama) and a real shell terminal via QProcess.
-# A strict snap cannot execute host programs, so the core feature would break.
-# VS Code / PyCharm / Sublime snaps are classic for the same reason. Classic needs a one-time
-# approval from the Snap Store team (request on forum.snapcraft.io).
+# WHY strict confinement (changed in 2.0.0): classic needs a manual Snap Store review that can
+# take weeks. Instead MEDHA now BUNDLES its own compilers, exactly like the Windows MSIX:
+#   - GCC/G++ 13 + binutils + glibc headers (Ubuntu 24.04 packages, staged below)
+#   - Temurin JDK 25 (same JDK as the Windows build)
+#   - Python 3.12 (already the runtime of the IDE itself)
+# So a strict snap passes the automatic review and is published immediately.
+# HOW gcc works inside the sandbox: snap/local/toolwrap/gcc runs gcc-13 --sysroot=$SNAP, so
+# headers and libs come from the snap; glibc itself comes from the core24 base (see the
+# `libc-links` part). Limits of strict: files only under your home folder (not hidden dot
+# folders) and removable drives; GDB debugging is not available (ptrace is blocked).
 
 name: medha-ide
 title: MEDHA IDE
@@ -30,7 +35,7 @@ issues: https://github.com/Kanak234/medha-ide/issues
 icon: snap/gui/io.github.Kanak234.Medha.png
 
 base: core24
-confinement: classic
+confinement: strict
 grade: stable
 # WHY: version comes from medha/__init__.py so the snap and the app never disagree.
 adopt-info: medha-app
@@ -51,10 +56,8 @@ parts:
     python-packages:
       - psutil>=7.2.0
       - requests>=2.34.0
-    # WHY: in a classic snap the venv must not point at the host python; patchelf + staged
-    # python make $SNAP/bin/python3 self-contained.
-    build-attributes:
-      - enable-patchelf
+    # WHY no enable-patchelf any more: that was only needed for classic. In a strict snap the
+    # python plugin links $SNAP/bin/python3 to the staged python3.12 automatically.
     stage-packages:
       - libpython3.12-minimal
       - libpython3.12-stdlib
@@ -123,6 +126,57 @@ parts:
       launch-medha: bin/launch-medha
     stage:
       - bin/launch-medha
+      - toolwrap
+
+  # C / C++ compilers. WHY gcc-13: it is Ubuntu 24.04's default, same ABI as the core24 base,
+  # so compiled student programs run against core24's glibc without surprises.
+  # snapcraft also pulls every dependency (cc1, as, ld, libc6-dev headers, crt1.o ...).
+  compilers:
+    plugin: nil
+    stage-packages:
+      - gcc-13
+      - g++-13
+      - binutils
+      - libc6-dev
+      - libstdc++-13-dev
+      - libstdc++6
+      - make
+
+  # glibc runtime files are part of the core24 base, so snapcraft does NOT stage them.
+  # But `gcc --sysroot=$SNAP` makes the linker look for e.g. /lib/x86_64-linux-gnu/libm.so.6
+  # INSIDE $SNAP. WHAT this part does: for every runtime .so of libc6 / libgcc-s1 / libstdc++6
+  # that is not already in the snap, add an absolute symlink pointing to the same path.
+  # Inside the snap's mount namespace "/" IS core24, so the link resolves to the base's copy.
+  # (Verified: C + C++ compile and run with host headers hidden, only the sysroot visible.)
+  libc-links:
+    plugin: nil
+    after: [compilers]
+    override-prime: |
+      craftctl default
+      for pkg in libc6 libgcc-s1 libstdc++6; do
+        dpkg -L "$pkg" 2>/dev/null | grep -E '^/(usr/)?lib(64)?/.*\.so[.0-9]*$' | while read -r f; do
+          # WHY both paths: noble ships glibc in /usr/lib, but libc6-dev's linker scripts
+          # (libc.so, libm.so) still name /lib/x86_64-linux-gnu/... and /lib64/ld-linux...
+          for t in "$f" "${f#/usr}"; do
+            [ -e "$CRAFT_PRIME$t" ] || [ -L "$CRAFT_PRIME$t" ] && continue
+            mkdir -p "$(dirname "$CRAFT_PRIME$t")"
+            ln -s "$f" "$CRAFT_PRIME$t"
+          done
+        done
+      done
+
+  # Java: Eclipse Temurin JDK 25 (same as the Windows MSIX). WHY a tarball and not the
+  # openjdk deb: the deb's config files are absolute /etc symlinks set up by
+  # update-alternatives, which never runs inside a snap. The Temurin tarball is self-contained.
+  jdk:
+    plugin: nil
+    build-packages: [curl, ca-certificates]
+    override-build: |
+      curl -fsSL -o jdk.tar.gz "https://api.adoptium.net/v3/binary/latest/25/ga/linux/x64/jdk/hotspot/normal/eclipse"
+      mkdir -p "$CRAFT_PART_INSTALL/jdk"
+      tar -xzf jdk.tar.gz -C "$CRAFT_PART_INSTALL/jdk" --strip-components=1
+      # not needed at runtime: sources, man pages, demos (saves ~60 MB)
+      rm -rf "$CRAFT_PART_INSTALL/jdk/lib/src.zip" "$CRAFT_PART_INSTALL/jdk/man" "$CRAFT_PART_INSTALL/jdk/demo"
 
   # AppStream metadata for software centres
   metainfo:
@@ -150,3 +204,14 @@ apps:
     command: bin/launch-medha
     desktop: usr/share/applications/io.github.Kanak234.Medha.desktop
     common-id: io.github.Kanak234.Medha
+    # All of these auto-connect, so no manual review is triggered.
+    plugs:
+      - home              # open/save projects in your home folder
+      - removable-media   # USB drives (lab PCs)
+      - network           # Open VSX extensions, local Ollama
+      - desktop
+      - desktop-legacy
+      - wayland
+      - x11
+      - opengl
+      - audio-playback    # Turbo C sound() beeps

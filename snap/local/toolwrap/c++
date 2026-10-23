@@ -1,0 +1,6 @@
+#!/bin/sh
+# MEDHA strict snap: c++ -> g++-13 with --sysroot=$SNAP
+# WHY: inside the sandbox "/" is the core24 base, which has no compiler headers or crt files.
+#      --sysroot makes gcc take headers/libs from the snap (staged by the 'compilers' part).
+# FLOW: MEDHA runner / Turbo builder -> "c++" on PATH -> this script -> real g++-13.
+exec "$SNAP/usr/bin/g++-13" --sysroot="$SNAP" "$@"
