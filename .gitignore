@@ -61,3 +61,9 @@ htmlcov/
 # snapcraft remote-build logs and outputs
 snapcraft-*.txt
 *.snap
+
+# MEDHĀ v2 build outputs
+.medha_build/
+toolchains/
+# PyInstaller spec for Windows IS source — keep it despite *.spec above
+!packaging/windows/*.spec

@@ -38,8 +38,12 @@ SEED = random.randint(10**6, 10**7 - 1)
 # ----------------------------------------------------------------- helpers
 
 def report(cid, name, ok, detail=""):
+    # ok=True → PASS, ok=False → FAIL, ok=None → SKIP.
+    # WHY: a check that could not run (missing wmctrl, no display) must never be
+    # counted as a pass — earlier versions printed PASS for a skipped window check,
+    # which hid the real launch bug. SKIP is reported separately in the summary.
     RESULTS.append((cid, name, ok))
-    mark = "PASS" if ok else "FAIL"
+    mark = "SKIP" if ok is None else ("PASS" if ok else "FAIL")
     print(f"[{mark}] {cid} — {name}")
     for line in str(detail).rstrip().split("\n"):
         if line.strip():
@@ -131,7 +135,7 @@ def c2_window_visible():
         ok = bool(r.stdout.strip())
         detail = f"xdotool window ids: {r.stdout.strip() or '(none)'}"
     else:
-        ok = True
+        ok = None   # cannot be verified automatically → SKIP, not PASS
         detail = ("wmctrl/xdotool not installed — automatic window detection skipped.\n"
                   "MANUAL CHECK REQUIRED: is a MEDHĀ window visible on your screen "
                   "right now? If not, this checkpoint FAILED regardless of this output.\n"
@@ -349,15 +353,21 @@ def main():
         except Exception as e:
             report(cid, fn.__doc__ or cid, False, f"validator crashed: {type(e).__name__}: {e}")
 
-    passed = sum(1 for _, _, ok in RESULTS if ok)
+    passed = sum(1 for _, _, ok in RESULTS if ok is True)
+    skipped = [c for c, _, ok in RESULTS if ok is None]
+    failed = [c for c, _, ok in RESULTS if ok is False]
     total = len(RESULTS)
     print("=" * 62)
-    print(f"RESULT: {passed}/{total} checkpoints passed")
-    if passed < total:
-        print("Failed: " + ", ".join(c for c, _, ok in RESULTS if not ok))
+    print(f"RESULT: {passed}/{total} checkpoints passed, {len(skipped)} skipped, {len(failed)} failed")
+    if skipped:
+        print("Skipped (NOT verified): " + ", ".join(skipped))
+    if failed:
+        print("Failed: " + ", ".join(failed))
         print("The phase is NOT complete. Fix and re-run. Do not advance.")
     print("=" * 62)
-    sys.exit(0 if passed == total else 1)
+    # Exit 0 only when every check really passed; a skip is exit 2 so CI never
+    # mistakes "could not check" for "checked and fine".
+    sys.exit(1 if failed else (2 if skipped else 0))
 
 
 if __name__ == "__main__":
