@@ -24,6 +24,7 @@ Release rule: fix and push all month, publish to the Store **once** at the end (
 | B7 | Low | 16 unused variables (pyflakes). | dsa_engine, panel.py, renderers | Remove. CI runs `pyflakes medha` and must be clean. |
 | B8 | Medium | Closing a window with active disassembly can call a deleted QTextEdit. | `app.py` closeEvent | Stop child QProcesses before widget teardown. |
 | B9 | High | Closing an edited tab discarded unsaved work without confirmation. | `app.py` close_tab/closeEvent | Save/Discard/Cancel guard, including cancelled Save As. |
+| B10 | Medium | `ProjectExplorerWidget.__init__` doesn't call `load_workspace()`, so workspace projects aren't loaded and fallback logic creates a project with the workspace directory name. | `medha/project_manager.py` line 192 | Add `self.workspace_manager.load_workspace(workspace_path)` in `__init__`. |
 More bugs come from Track B (section 3) — append them to this table with the same columns.
 
 ## 2. Track A — New UI like VS Code / Antigravity (ChatGPT)

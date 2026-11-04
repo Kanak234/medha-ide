@@ -149,6 +149,7 @@ class ProjectExplorerWidget(QWidget):
         super().__init__(parent)
         self.workspace_path = workspace_path
         self.workspace_manager = WorkspaceManager(workspace_path)
+        self.workspace_manager.load_workspace(workspace_path)  # Load projects from workspace
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
