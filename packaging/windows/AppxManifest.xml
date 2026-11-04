@@ -3,7 +3,7 @@
   MEDHĀ IDE — MSIX manifest (Microsoft Store, free Individual developer account).
   WHAT: describes the packaged Win32 app (MEDHA.exe) to Windows and the Store.
   Identity values copied from Partner Center → Product identity (23 Oct 2026).
-       They are public (every installed MSIX shows them), so they live in the repo. build_msix.ps1 replaces __VERSION__.
+       They are public (every installed MSIX shows them), so they live in the repo. build_msix.ps1 synchronizes Identity.Version from medha/__init__.py.
   runFullTrust: required for a classic desktop (Win32) app; nothing else is requested.
 -->
 <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
@@ -12,7 +12,7 @@
          IgnorableNamespaces="uap rescap">
   <Identity Name="KanakPrabhakar.MEDHIDE"
             Publisher="CN=D47E0796-ADF8-4726-BE39-DCBB2D6B664D"
-            Version="__VERSION__"
+            Version="2.0.0.0"
             ProcessorArchitecture="x64" />
   <Properties>
     <DisplayName>MEDHĀ IDE</DisplayName>
