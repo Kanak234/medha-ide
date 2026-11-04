@@ -4,6 +4,7 @@ Tests for Extension Contributions Loader.
 Tests theme mapping, editor theme application, and snippet expansion.
 """
 from __future__ import annotations
+import inspect
 import json
 import os
 import sys
@@ -12,7 +13,9 @@ from pathlib import Path
 
 import pytest
 
+from medha.extensions import contributions as contributions_module
 from medha.extensions.contributions import (
+    load_extension_contributions,
     map_vscode_theme_to_medha,
     apply_theme_to_editor,
     load_theme_file,
@@ -377,6 +380,32 @@ class TestSnippetIntegration:
         c_snippets = all_snippets["c"]
         assert "forn" in c_snippets
         assert c_snippets["forn"].prefix == "forn"
+
+
+class TestLoadExtensionContributions:
+    """B4: keep exactly one definition of load_extension_contributions."""
+
+    def test_defined_exactly_once(self):
+        # WHY: the second definition silently replaced the first (same body,
+        # so harmless today — but the next edit to one copy would be lost).
+        # WHAT: count the source definitions.
+        # WHERE it flows: contributions.py module import above.
+        source = Path(contributions_module.__file__).read_text(encoding="utf-8")
+        assert source.count("def load_extension_contributions(") == 1
+
+    def test_returns_themes_snippets_grammars(self, installed_extension):
+        # WHY: the public API contract in the docstring.
+        # WHAT: call it on the fixture extension.
+        contributions = load_extension_contributions(installed_extension)
+        assert set(contributions) == {"themes", "snippets", "grammars"}
+        assert contributions["themes"], "fixture declares one theme"
+        assert contributions["snippets"], "fixture declares snippets"
+
+    def test_unsupported_returns_empty(self, installed_extension):
+        # WHY: JS-only extensions must not crash the loader.
+        installed_extension.classification = ExtensionClassification.UNSUPPORTED
+        contributions = load_extension_contributions(installed_extension)
+        assert contributions == {"themes": [], "snippets": {}, "grammars": []}
 
 
 # =============================================================================

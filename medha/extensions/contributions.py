@@ -693,26 +693,3 @@ def load_extension_contributions(installed: InstalledExtension) -> Dict[str, Any
         logger.info(f"Extension {installed.unique_id} is PARTIAL (has JS code + declarative)")
 
     return contributions
-
-
-def load_extension_contributions(installed: InstalledExtension) -> Dict[str, Any]:
-    """
-    Load all declarative contributions from an installed extension.
-
-    Returns:
-        Dict with keys: themes, snippets, grammars
-    """
-    if installed.classification == ExtensionClassification.UNSUPPORTED:
-        logger.info(f"Extension {installed.unique_id} is UNSUPPORTED (JS only)")
-        return {"themes": [], "snippets": {}, "grammars": []}
-
-    contributions = {
-        "themes": load_all_themes(installed),
-        "snippets": load_all_snippets(installed),
-        "grammars": load_all_grammars(installed),
-    }
-
-    if installed.classification == ExtensionClassification.PARTIAL:
-        logger.info(f"Extension {installed.unique_id} is PARTIAL (has JS code + declarative)")
-
-    return contributions
