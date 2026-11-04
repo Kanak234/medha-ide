@@ -1,5 +1,17 @@
-"""Offline by default: only explicitly opted-in tests may contact the registry."""
+"""Offline by default: only explicitly opted-in tests may contact the registry.
+
+This file is imported by pytest before any test collection. Setting
+QT_QPA_PLATFORM=offscreen here ensures the Qt application never tries to open
+a real display, so the entire test suite runs headless on CI and local machines
+without a window server.
+"""
 import os
+
+# Set offscreen platform BEFORE any Qt import happens — this must be at the very top
+# so that terminal.py, app.py, and all other modules that import QtWidgets at
+# module level never attempt to connect to a display server.
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
 import pytest
 
 
