@@ -1008,6 +1008,14 @@ class MedhaMainWindow(QMainWindow):
         ShortcutsDialog(collect_actions(self.menuBar()), self).exec()
 
     def closeEvent(self, event):
+        # Stop child processes while their receiving widgets still exist. Otherwise
+        # a late disassembly callback can access a deleted QTextEdit during teardown.
+        from PySide6.QtCore import QProcess
+        for process in self.findChildren(QProcess):
+            process.blockSignals(True)
+            if process.state() != QProcess.ProcessState.NotRunning:
+                process.kill()
+                process.waitForFinished(1000)
         if hasattr(self, 'terminal') and self.terminal:
             self.terminal.shutdown()
         if hasattr(self, 'runner') and self.runner and hasattr(self.runner, 'process'):
