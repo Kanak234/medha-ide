@@ -44,6 +44,16 @@ jobs:
       - name: Build MSIX (includes MEDHA.exe --selftest with bundled GCC)
         shell: pwsh
         run: packaging\windows\build_msix.ps1
+      - name: Frozen Windows acceptance
+        shell: pwsh
+        run: |
+          $env:MEDHA_ACCEPTANCE_DIR = "$pwd/dist/frozen-acceptance"
+          $p = Start-Process "$pwd/dist/MEDHA/MEDHA.exe" -ArgumentList "--acceptance" -PassThru
+          if (-not $p.WaitForExit(180000)) { $p.Kill(); throw "Frozen acceptance timeout" }
+          if ($p.ExitCode -ne 0) { throw "Frozen acceptance failed" }
+          $result = Get-Content "$env:MEDHA_ACCEPTANCE_DIR/results.json" -Raw | ConvertFrom-Json
+          if ($result.status -ne "PASS") { throw "Frozen acceptance did not pass" }
+          Remove-Item Env:MEDHA_ACCEPTANCE_DIR
       - name: Source Windows interactive acceptance with bundled GCC
         shell: pwsh
         run: |
@@ -68,3 +78,12 @@ jobs:
             dist/startup.log
             dist/acceptance/
             toolchains/MANIFEST.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-evidence
+          path: |
+            dist/gui-smoke.*
+            dist/startup.log
+            dist/acceptance/
+            dist/frozen-acceptance/
