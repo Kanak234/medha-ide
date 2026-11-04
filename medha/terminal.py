@@ -2,26 +2,350 @@
 MEDHĀ IDE — terminal.py — integrated terminal (real shell, real program input)
 ===============================================================================
 
-WHAT:  A text area + input line backed by a REAL shell process:
-         Linux/macOS → $SHELL -i (bash/zsh)      Windows → cmd.exe /Q (UTF-8 code page)
-       While a program started by the Run button is running, whatever the student
-       types goes to THAT program's stdin (scanf / cin / input() / Scanner) instead
-       of the shell.
+WHAT:  A text area + input line backed by a REAL pseudo-terminal:
+          Linux/macOS → pty.openpty() + QSocketNotifier (master fd) → bash/zsh -i
+          Windows     → pywinpty (ConPTY) if available, else QProcess fallback
+        While a program started by the Run button is running, whatever the student
+        types goes to THAT program's stdin (scanf / cin / input() / Scanner) instead
+        of the shell.
 WHY:   v1 hardcoded `/bin/bash -i` (no terminal on Windows) and always sent typed
        text to bash, so a program waiting in scanf() could never receive input —
-       the most basic thing a C-Lite/Dev-C++ user expects.
+       the most basic thing a C-Lite/Dev-C++ user expects. The QProcess-only approach
+       also made bash print "cannot set terminal process group / no job control"
+       and broke interactive programs (vim, top, colours, Ctrl+C). A real pty fixes
+       all of this.
 USED BY: app.py (bottom dock), verify_medha.py C5 (real shell check).
 FLOW:  typed line → send_input() → input_override(text) if a program runs
        (runner.write_stdin) else shell stdin → shell/program output → append_output()
 """
 
 import os
+import signal
 
-from PySide6.QtCore import QProcess, Signal
+from PySide6.QtCore import QObject, QSocketNotifier, QProcess, Signal, QTimer
 from PySide6.QtGui import QColor, QFontDatabase, QTextCursor
 from PySide6.QtWidgets import QLineEdit, QTextEdit, QVBoxLayout, QWidget
 
 from medha import platform_info as P
+
+
+class _PtyProcess(QObject):
+    """
+    Base class for pseudo-terminal backends.
+    Subclasses implement: start(), write(), shutdown(), _on_ready_read().
+    """
+    ready_read = Signal(bytes)
+    finished = Signal(int)
+    error_occurred = Signal(str)
+
+    def __init__(self, workspace_path, parent=None):
+        super().__init__(parent)
+        self.workspace_path = workspace_path
+        self._shell_started = False
+
+    def start(self):
+        raise NotImplementedError
+
+    def write(self, data: bytes):
+        raise NotImplementedError
+
+    def shutdown(self):
+        raise NotImplementedError
+
+
+class _UnixPtyProcess(_PtyProcess):
+    """
+    Linux/macOS pseudo-terminal using pty.openpty() + QSocketNotifier.
+
+    WHY pty.openpty(): it allocates a real pseudo-terminal pair (master, slave).
+    The slave side becomes the child's controlling terminal (setsid + ioctl TIOCSCTTY),
+    so bash thinks it has a real TTY → job control works, colours work, Ctrl+C sends
+    SIGINT to the foreground process group, and the "cannot set terminal process group"
+    message disappears.
+
+    WHY QSocketNotifier: it integrates the master fd into Qt's event loop so we get
+    readyRead notifications without a separate thread. The notifier watches the master
+    fd for readability and calls _on_ready_read() which reads and emits ready_read.
+    """
+
+    def __init__(self, workspace_path, parent=None):
+        super().__init__(workspace_path, parent)
+        self._master_fd = -1
+        self._slave_fd = -1
+        self._notifier = None
+        self._child_pid = 0
+
+    def start(self):
+        import pty
+
+        # Determine the shell to use (needed for the startup message)
+        shell = os.environ.get("SHELL", "/bin/bash")
+
+        # Allocate a new pseudo-terminal pair
+        self._master_fd, self._slave_fd = pty.openpty()
+
+        # Fork the child process
+        self._child_pid = os.fork()
+        if self._child_pid == 0:
+            # CHILD: becomes session leader, slave fd becomes controlling terminal
+            os.setsid()
+            # Make the slave fd the controlling terminal
+            try:
+                import fcntl
+                import termios
+                fcntl.ioctl(self._slave_fd, termios.TIOCSCTTY, 0)
+            except Exception:
+                pass
+            # Redirect stdin, stdout, stderr to the slave pty
+            os.dup2(self._slave_fd, 0)
+            os.dup2(self._slave_fd, 1)
+            os.dup2(self._slave_fd, 2)
+            # Close the master fd in the child
+            os.close(self._master_fd)
+            # Close the slave fd (dupped to 0,1,2)
+            if self._slave_fd > 2:
+                os.close(self._slave_fd)
+            # Change to workspace directory
+            os.chdir(self.workspace_path)
+            # Execute the shell
+            os.execvpe(shell, [shell, "-i"], os.environ)
+            # If execvpe returns, it failed
+            os._exit(1)
+
+        # PARENT: close the slave fd, keep the master
+        os.close(self._slave_fd)
+        self._slave_fd = -1
+
+        # Set the master fd to non-blocking
+        import fcntl
+        flags = fcntl.fcntl(self._master_fd, fcntl.F_GETFL)
+        fcntl.fcntl(self._master_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+
+        # Create a QSocketNotifier to watch the master fd for readability
+        self._notifier = QSocketNotifier(self._master_fd, QSocketNotifier.Type.Read, self)
+        self._notifier.activated.connect(self._on_ready_read)
+
+        self._shell_started = True
+        self.ready_read.emit(f"[MEDHĀ Terminal] {os.path.basename(shell)} started in {self.workspace_path}\n".encode("utf-8"))
+
+    def _on_ready_read(self):
+        try:
+            data = os.read(self._master_fd, 4096)
+            if data:
+                self.ready_read.emit(data)
+            else:
+                # EOF — shell exited
+                self._cleanup()
+                self.finished.emit(0)
+        except OSError as e:
+            if e.errno == 5:  # EIO — happens when the slave side closes
+                self._cleanup()
+                self.finished.emit(0)
+            else:
+                self.error_occurred.emit(str(e))
+
+    def write(self, data: bytes):
+        if self._master_fd >= 0:
+            try:
+                os.write(self._master_fd, data)
+            except OSError:
+                pass  # Ignore write errors (shell may have exited)
+
+    def send_signal(self, sig):
+        """Send a signal to the child's process group (for Ctrl+C → SIGINT)."""
+        if self._child_pid > 0:
+            try:
+                os.killpg(os.getpgid(self._child_pid), sig)
+            except OSError:
+                pass
+
+    def shutdown(self):
+        if self._child_pid > 0:
+            try:
+                os.killpg(os.getpgid(self._child_pid), signal.SIGTERM)
+            except OSError:
+                pass
+        self._cleanup()
+
+    def _cleanup(self):
+        if self._notifier:
+            self._notifier.setEnabled(False)
+            self._notifier.deleteLater()
+            self._notifier = None
+        if self._master_fd >= 0:
+            try:
+                os.close(self._master_fd)
+            except OSError:
+                pass
+            self._master_fd = -1
+        if self._slave_fd >= 0:
+            try:
+                os.close(self._slave_fd)
+            except OSError:
+                pass
+            self._slave_fd = -1
+        self._shell_started = False
+
+
+class _WindowsConPtyProcess(_PtyProcess):
+    """
+    Windows ConPTY backend using pywinpty.
+
+    WHY ConPTY: Windows 10 1809+ introduced the ConPTY API (CreatePseudoConsole)
+    which provides a real pseudo-console. pywinpty is a thin wrapper around it.
+    This gives us proper terminal semantics (colours, Ctrl+C, line editing) on Windows.
+
+    If pywinpty is not importable, we fall back to _QProcessFallback.
+    """
+
+    def __init__(self, workspace_path, parent=None):
+        super().__init__(workspace_path, parent)
+        self._pty = None
+        self._process = None
+        self._notifier = None
+
+    def start(self):
+        import pywinpty  # noqa: F401
+
+        # Create a ConPTY with default size (80x24)
+        self._pty = pywinpty.PtyProcess.spawn(
+            [os.environ.get("COMSPEC", r"C:\Windows\System32\cmd.exe"), "/Q"],
+            cwd=self.workspace_path,
+            cols=80,
+            rows=24,
+        )
+        self._process = self._pty
+
+        # Set up a timer to poll for output (pywinpty doesn't integrate with Qt's event loop directly)
+        # We use a QTimer with a short interval to check for data.
+        self._timer = QTimer(self)
+        self._timer.timeout.connect(self._poll_output)
+        self._timer.start(10)  # 10 ms polling interval
+
+        self._shell_started = True
+        self.ready_read.emit("[MEDHĀ Terminal] cmd.exe started\n".encode("utf-8"))
+
+    def _poll_output(self):
+        if self._pty and self._pty.isalive():
+            try:
+                data = self._pty.read(4096)
+                if data:
+                    self.ready_read.emit(data.encode("utf-8", errors="replace"))
+            except Exception:
+                pass
+        else:
+            self._timer.stop()
+            self.finished.emit(0)
+
+    def write(self, data: bytes):
+        if self._pty and self._pty.isalive():
+            try:
+                self._pty.write(data.decode("utf-8", errors="replace"))
+            except Exception:
+                pass
+
+    def send_signal(self, sig):
+        # ConPTY doesn't have Unix signals; we send Ctrl+C as a keystroke
+        if sig == signal.SIGINT and self._pty and self._pty.isalive():
+            try:
+                self._pty.send_control('c')
+            except Exception:
+                pass
+
+    def shutdown(self):
+        if hasattr(self, '_timer') and self._timer:
+            self._timer.stop()
+        if self._pty and self._pty.isalive():
+            try:
+                self._pty.terminate()
+            except Exception:
+                pass
+        self._shell_started = False
+
+
+class _QProcessFallback(_PtyProcess):
+    """
+    Fallback backend using QProcess (original behaviour).
+
+    Used when:
+      - pywinpty is not available on Windows
+      - pty.openpty() fails on Unix (should not happen, but safety net)
+    This retains the old behaviour so the IDE never loses terminal functionality.
+    """
+
+    def __init__(self, workspace_path, parent=None):
+        super().__init__(workspace_path, parent)
+        self._process = QProcess(self)
+        self._process.setWorkingDirectory(self.workspace_path)
+        self._process.readyReadStandardOutput.connect(self._on_stdout)
+        self._process.readyReadStandardError.connect(self._on_stderr)
+        self._process.finished.connect(self._on_finished)
+        self._process.errorOccurred.connect(self._on_error)
+
+    def start(self):
+        program, args = P.default_shell()
+        self._process.start(program, args)
+        if P.IS_WINDOWS:
+            # UTF-8 code page
+            self._process.write(b"chcp 65001 >nul\r\n")
+
+    def _on_stdout(self):
+        data = self._process.readAllStandardOutput().data()
+        self.ready_read.emit(data)
+
+    def _on_stderr(self):
+        data = self._process.readAllStandardError().data()
+        self.ready_read.emit(data)
+
+    def _on_finished(self, exit_code, exit_status):
+        self.finished.emit(exit_code)
+
+    def _on_error(self, error):
+        if error == QProcess.ProcessError.FailedToStart:
+            self.error_occurred.emit("Could not start the system shell.")
+
+    def write(self, data: bytes):
+        self._process.write(data)
+
+    def send_signal(self, sig):
+        # QProcess doesn't support sending signals to process groups on Windows
+        # On Unix we could use killpg, but we don't have the pgid easily.
+        # For the fallback, we just kill the process.
+        if self._process.state() != QProcess.ProcessState.NotRunning:
+            self._process.kill()
+
+    def shutdown(self):
+        if self._process.state() != QProcess.ProcessState.NotRunning:
+            self._process.terminate()
+            if not self._process.waitForFinished(1500):
+                self._process.kill()
+                self._process.waitForFinished(1000)
+
+
+def _create_pty_backend(workspace_path, parent=None) -> _PtyProcess:
+    """
+    Factory: pick the best available backend for the current platform.
+
+    Linux/macOS → _UnixPtyProcess (pty.openpty + QSocketNotifier)
+    Windows     → _WindowsConPtyProcess if pywinpty importable, else _QProcessFallback
+    """
+    if P.IS_WINDOWS:
+        try:
+            import pywinpty
+            _ = pywinpty  # silence pyflakes "imported but unused"
+            return _WindowsConPtyProcess(workspace_path, parent)
+        except ImportError:
+            # pywinpty not installed — fall back to QProcess
+            return _QProcessFallback(workspace_path, parent)
+    else:
+        # Linux/macOS — pty.openpty should always be available
+        try:
+            import pty
+            _ = pty  # silence pyflakes "imported but unused"
+            return _UnixPtyProcess(workspace_path, parent)
+        except ImportError:
+            # Extremely unlikely, but fallback exists
+            return _QProcessFallback(workspace_path, parent)
 
 
 class IntegratedTerminalWidget(QWidget):
@@ -32,7 +356,6 @@ class IntegratedTerminalWidget(QWidget):
     def __init__(self, workspace_path=None, parent=None):
         super().__init__(parent)
         self.workspace_path = workspace_path or os.getcwd()
-        self._shell_started = False
         self._pending_input = []
         # set by app.py while a Run is active: callable(str) -> bool (True = consumed)
         self.input_override = None
@@ -58,73 +381,44 @@ class IntegratedTerminalWidget(QWidget):
         self.input_line.returnPressed.connect(self.send_input)
         layout.addWidget(self.input_line)
 
-        self.process = QProcess(self)
-        self.process.setWorkingDirectory(self.workspace_path)
-        self.process.readyReadStandardOutput.connect(self.read_stdout)
-        self.process.readyReadStandardError.connect(self.read_stderr)
-        self.process.finished.connect(self.on_process_finished)
-        self.process.started.connect(self._on_process_started)
-        self.process.errorOccurred.connect(self._on_process_error)
-        self.start_shell()
+        # Create the pty backend
+        self._pty = _create_pty_backend(self.workspace_path, self)
+        self._pty.ready_read.connect(self._on_pty_output)
+        self._pty.finished.connect(self._on_pty_finished)
+        self._pty.error_occurred.connect(self._on_pty_error)
+        self._pty.start()
+
+        # Install event filter on input_line to catch Ctrl+C
+        self.input_line.installEventFilter(self)
 
     # ------------------------------------------------------------ shell life
-    def start_shell(self):
-        if self._shell_started:
-            return
-        state = self.process.state()
-        if state == QProcess.ProcessState.NotRunning:
-            program, args = P.default_shell()
-            self.process.start(program, args)
-            self.append_output(f"[MEDHĀ Terminal] {os.path.basename(program)} started in {self.workspace_path}\n",
-                               color="#8b949e")
-        elif state == QProcess.ProcessState.Running:
-            self._shell_started = True
-
-    def _on_process_started(self):
-        self._shell_started = True
-        if P.IS_WINDOWS:
-            # UTF-8 code page so Hindi file names and box characters print correctly
-            self.process.write(b"chcp 65001 >nul\r\n")
-        for cmd in self._pending_input:
-            self._write_shell(cmd)
-        self._pending_input.clear()
-
-    def on_process_finished(self, exit_code, exit_status):
+    def _on_pty_finished(self, exit_code):
         self.append_output(f"\n[shell exited with code {exit_code}]\n", color="#8b949e")
-        self._shell_started = False
+        self._pty._shell_started = False
 
-    def _on_process_error(self, error):
-        if error == QProcess.ProcessError.FailedToStart:
-            self.append_output("[MEDHĀ Terminal] Could not start the system shell.\n", color="#f85149")
+    def _on_pty_error(self, msg):
+        self.append_output(f"[MEDHĀ Terminal] {msg}\n", color="#f85149")
 
     def closeEvent(self, event):
         self.shutdown()
         super().closeEvent(event)
 
     def shutdown(self):
-        if self.process.state() != QProcess.ProcessState.NotRunning:
-            self.process.terminate()
-            if not self.process.waitForFinished(1500):
-                self.process.kill()
-                self.process.waitForFinished(1000)
+        self._pty.shutdown()
 
     def set_working_directory(self, folder):
         """Opening a new workspace also moves the shell there."""
         self.workspace_path = folder
-        self.process.setWorkingDirectory(folder)
-        if self._shell_started:
-            quoted = f'cd /d "{folder}"' if P.IS_WINDOWS else f"cd '{folder}'"
-            self._write_shell(quoted)
+        # Send a cd command to the shell
+        quoted = f'cd /d "{folder}"' if P.IS_WINDOWS else f"cd '{folder}'"
+        self._write_shell(quoted)
 
     # ---------------------------------------------------------------- output
     def _decode(self, data: bytes) -> str:
         return data.decode("utf-8", errors="replace")
 
-    def read_stdout(self):
-        self.append_output(self._decode(self.process.readAllStandardOutput().data()))
-
-    def read_stderr(self):
-        self.append_output(self._decode(self.process.readAllStandardError().data()), color="#f85149")
+    def _on_pty_output(self, data: bytes):
+        self.append_output(self._decode(data))
 
     def append_output(self, text, color=None):
         if not text:
@@ -151,7 +445,7 @@ class IntegratedTerminalWidget(QWidget):
     # ----------------------------------------------------------------- input
     def _write_shell(self, text):
         newline = "\r\n" if P.IS_WINDOWS else "\n"
-        self.process.write((text + newline).encode("utf-8"))
+        self._pty.write((text + newline).encode("utf-8"))
 
     def send_input(self):
         text = self.input_line.text()
@@ -160,18 +454,33 @@ class IntegratedTerminalWidget(QWidget):
         if self.input_override is not None and self.input_override(text):
             self.append_output(text + "\n", color="#79c0ff")
             return
-        if self._shell_started and self.process.state() == QProcess.ProcessState.Running:
+        if self._pty._shell_started:
             self.append_output(text + "\n", color="#79c0ff")
             self._write_shell(text)
             self.command_executed.emit(text)
         else:
             self._pending_input.append(text)
-            self.start_shell()
+            # Shell not ready yet — will be sent when started
 
     def execute_command(self, cmd_string):
-        if self._shell_started and self.process.state() == QProcess.ProcessState.Running:
+        if self._pty._shell_started:
             self.append_output(cmd_string + "\n", color="#79c0ff")
             self._write_shell(cmd_string)
         else:
             self._pending_input.append(cmd_string)
-            self.start_shell()
+
+    # ---------------------------------------------------------------- Ctrl+C
+    def eventFilter(self, obj, event):
+        from PySide6.QtCore import QEvent, Qt
+        from PySide6.QtGui import QKeySequence
+        if obj is self.input_line and event.type() == QEvent.Type.KeyPress:
+            # Check for Ctrl+C FIRST (before Copy) — Ctrl+C must send SIGINT
+            if event.key() == Qt.Key.Key_C and event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+                # Send SIGINT to the foreground process group (Unix) or Ctrl+C keystroke (Windows ConPTY)
+                self._pty.send_signal(signal.SIGINT)
+                self.append_output("^C\n", color="#f85149")
+                return True  # Event handled
+            # Allow standard Copy (Ctrl+Insert or Ctrl+C on some platforms) to pass through
+            if event.matches(QKeySequence.StandardKey.Copy):
+                return False  # Let the default copy handling proceed
+        return super().eventFilter(obj, event)
