@@ -28,3 +28,17 @@ def window(tmp_path, monkeypatch):
 def test_window_opens(window):
     assert window.isVisible()
     assert window.tab_widget.count() > 0
+
+
+def test_titles_escape_literal_ampersands(window, tmp_path):
+    import re
+    from PySide6.QtWidgets import QDockWidget, QTabWidget
+    path = tmp_path / 'a&b.c'
+    path.write_text('int main(void) {}')
+    window.open_file_path(str(path))
+    window.get_current_editor().insertPlainText('// edit')
+    window.create_untitled_tab('x&y.c')
+    titles = [dock.windowTitle() for dock in window.findChildren(QDockWidget)]
+    for tabs in window.findChildren(QTabWidget):
+        titles.extend(tabs.tabText(i) for i in range(tabs.count()))
+    assert all(not re.search(r'(?<!&)&(?!&)', title) for title in titles)

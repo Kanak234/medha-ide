@@ -3,7 +3,7 @@ MEDHĀ IDE — Interactive GDB Debugger Engine & Panels
 Extends DebugSession with GUI panels:
  1. Breakpoints Panel
  2. Call Stack / Backtrace Panel
- 3. Variables & Watch Expressions Panel
+ 3. Variables && Watch Expressions Panel
 Signals UI updates for editor execution line highlighting and margin breakpoints.
 """
 
@@ -173,7 +173,7 @@ class GdbDebuggerPanelWidget(QWidget):
         watch_box.addWidget(btn_eval)
         var_layout.addLayout(watch_box)
 
-        self.tabs.addTab(var_widget, "Variables & Watch")
+        self.tabs.addTab(var_widget, "Variables && Watch")
 
         layout.addWidget(self.tabs)
 

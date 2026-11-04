@@ -167,7 +167,7 @@ class MedhaMainWindow(QMainWindow):
         self.safety_panel.diagnostic_selected.connect(self.navigate_to_problem)
 
         self.bottom_tabs.addTab(self.terminal, "Terminal")
-        self.bottom_tabs.addTab(self.problems, "Compiler Output & Issues")
+        self.bottom_tabs.addTab(self.problems, "Compiler Output && Issues")
         self.bottom_tabs.addTab(self.safety_panel, "Safety Linter (cppcheck)")
         # v2: offline security scan of the student's own code (CWE + explanation)
         self.security_panel = SecurityPanel()
@@ -189,7 +189,7 @@ class MedhaMainWindow(QMainWindow):
             }
         """)
 
-        self.dock_bottom = QDockWidget("Console & Safety Diagnostics", self)
+        self.dock_bottom = QDockWidget("Console && Safety Diagnostics", self)
         self.dock_bottom.setWidget(self.bottom_tabs)
         self.dock_bottom.setAllowedAreas(Qt.DockWidgetArea.BottomDockWidgetArea | Qt.DockWidgetArea.TopDockWidgetArea)
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.dock_bottom)
@@ -203,7 +203,7 @@ class MedhaMainWindow(QMainWindow):
 
         # Dock Widget 4 — Visual Memory & Pointer Inspector (Right)
         self.memory_view = MemoryVisualizerWidget(self)
-        self.dock_memory = QDockWidget("Live Memory & Pointers", self)
+        self.dock_memory = QDockWidget("Live Memory && Pointers", self)
         self.dock_memory.setWidget(self.memory_view)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.dock_memory)
 
@@ -583,7 +583,7 @@ class MedhaMainWindow(QMainWindow):
                 base = os.path.basename(editor.file_path) if editor.file_path else "untitled.c"
                 if getattr(editor, 'is_modified', False):
                     base += " •"
-                self.tab_widget.setTabText(i, base)
+                self.tab_widget.setTabText(i, base.replace("&", "&&"))
                 break
 
     def update_cursor_status(self):
@@ -615,7 +615,7 @@ class MedhaMainWindow(QMainWindow):
         editor.cursorPositionChanged.connect(self.update_cursor_status)
         editor.textChanged.connect(lambda e=editor: self.update_tab_title(e))
         editor.breakpoint_toggled.connect(self.on_breakpoint_toggled)
-        idx = self.tab_widget.addTab(editor, title)
+        idx = self.tab_widget.addTab(editor, title.replace("&", "&&"))
         self.tab_widget.setCurrentIndex(idx)
         self.update_cursor_status()
 
@@ -640,7 +640,7 @@ class MedhaMainWindow(QMainWindow):
             editor.cursorPositionChanged.connect(self.update_cursor_status)
             editor.textChanged.connect(lambda e=editor: self.update_tab_title(e))
             editor.breakpoint_toggled.connect(self.on_breakpoint_toggled)
-            idx = self.tab_widget.addTab(editor, filename)
+            idx = self.tab_widget.addTab(editor, filename.replace("&", "&&"))
             self.tab_widget.setCurrentIndex(idx)
             self.lbl_status.setText(f"Opened file: {path}")
             self.update_cursor_status()
