@@ -36,7 +36,7 @@ def get_app_icon_path() -> str:
     return repo_icon
 
 
-from PySide6.QtWidgets import QTextEdit
+from PySide6.QtWidgets import QTextEdit, QMenu
 from medha.workbench import ToolDock, Workbench
 from medha.editor import CodeEditorWidget
 from medha.editor_widget import AdvancedCodeEditorWidget, CodeOutlineWidget
@@ -282,6 +282,7 @@ class MedhaMainWindow(QMainWindow):
         # Setup MenuBar & StatusBar
         self.create_menu_bar()
         self.workbench = Workbench(self)
+        self.arrange_menus()
         self.setCentralWidget(self.workbench)
         self.create_status_bar()
         self.apply_dark_theme()
@@ -533,6 +534,72 @@ class MedhaMainWindow(QMainWindow):
         act_about = QAction("&About MEDHĀ IDE", self)
         act_about.triggered.connect(self.show_about_dialog)
         help_menu.addAction(act_about)
+
+    def arrange_menus(self):
+        from medha.navigation import SearchView, GitView
+        from PySide6.QtWidgets import QStyle, QPushButton
+        from medha.command_palette import collect_actions
+        self.legacy_actions = [action for _, action in collect_actions(self.menuBar())]
+        menus = {action.menu().title().replace('&', ''): action.menu()
+                 for action in self.menuBar().actions()}
+        bar = self.menuBar()
+        for action in list(bar.actions()):
+            bar.removeAction(action)
+        # Reuse the very same QAction objects so shortcuts and connected slots survive.
+        selection = QMenu('Selection', self)
+        go = QMenu('Go', self)
+        terminal = QMenu('Terminal', self)
+        for menu in [menus['File'], menus['Edit'], selection, menus['View'], go,
+                     menus['Run'], terminal, menus['Help']]:
+            bar.addMenu(menu)
+        menus['Run'].addMenu(menus['Debug'])
+        menus['Run'].addMenu(menus['Build'])
+        menus['Run'].addMenu(menus['Analyze'])
+        menus['Edit'].addMenu(menus['Tools'])
+        go.addMenu(menus['LSP'])
+        menus['View'].addMenu(menus['Git'])
+
+        def add(menu, title, shortcut, callback):
+            action = QAction(title, self)
+            if shortcut:
+                action.setShortcut(QKeySequence(shortcut))
+            action.triggered.connect(callback)
+            menu.addAction(action)
+            return action
+
+        add(selection, 'Select All', 'Ctrl+A', lambda: self.get_current_editor() and self.get_current_editor().selectAll())
+        add(menus['File'], 'Quick Open…', 'Ctrl+P', self.show_quick_open)
+        add(go, 'Go to Line…', 'Ctrl+G', self.go_to_line)
+        add(terminal, 'Focus Terminal', 'Ctrl+`', self.focus_terminal)
+        add(terminal, 'Clear Terminal', None, self.terminal.output_edit.clear)
+        add(terminal, 'Stop Program', None, self.runner_stop)
+        self.search_view = SearchView(self)
+        search_index = self.workbench.add_view('Search', self.search_view, QStyle.StandardPixmap.SP_FileDialogContentsView)
+        self.git_view = GitView(self)
+        git_index = self.workbench.add_view('Git', self.git_view, QStyle.StandardPixmap.SP_DirLinkIcon)
+        add(menus['View'], 'Search Workspace', 'Ctrl+Shift+F', lambda: self.workbench.activate(search_index))
+        add(menus['View'], 'Source Control', 'Ctrl+Shift+G', lambda: self.workbench.activate(git_index))
+        self.command_centre = QPushButton('Search commands…  Ctrl+Shift+P')
+        self.command_centre.setObjectName('commandCentre')
+        self.command_centre.clicked.connect(self.show_command_palette)
+        bar.setCornerWidget(self.command_centre, Qt.Corner.TopRightCorner)
+
+    def show_quick_open(self):
+        from medha.navigation import QuickOpen
+        QuickOpen(self.workspace_path, self.open_file_path, self).exec()
+
+    def go_to_line(self):
+        from PySide6.QtWidgets import QInputDialog
+        editor = self.get_current_editor()
+        if editor:
+            line, accepted = QInputDialog.getInt(self, 'Go to Line', 'Line:', 1, 1, editor.blockCount())
+            if accepted:
+                self.navigate_to_line(line)
+
+    def focus_terminal(self):
+        self.dock_bottom.show()
+        self.bottom_tabs.setCurrentWidget(self.terminal)
+        self.terminal.input_line.setFocus()
 
     def set_active_build_target(self, target):
         self.active_build_config = target

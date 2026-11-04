@@ -71,3 +71,39 @@ def test_layout_preferences_roundtrip(window):
     assert prefs.value('sidebar_width', type=int) == 320
     assert prefs.value('panel_height', type=int) == 180
     assert prefs.value('sidebar_visible', type=bool) is False
+
+
+def test_menu_order_and_existing_actions_preserved(window):
+    import json
+    from pathlib import Path
+    from collections import Counter
+    from medha.command_palette import collect_actions
+    menus = [a.text().replace('&', '') for a in window.menuBar().actions()]
+    assert menus == ['File', 'Edit', 'Selection', 'View', 'Go', 'Run', 'Terminal', 'Help']
+    original = json.loads((Path(__file__).parent / 'fixtures/v1_actions.json').read_text())
+    before = Counter(text.replace('&', '') for text in original)
+    after = Counter(action.text().replace('&', '') for _, action in collect_actions(window.menuBar()))
+    assert not (before - after)
+    reachable = {action for _, action in collect_actions(window.menuBar())}
+    assert set(window.legacy_actions) <= reachable
+
+
+def test_quick_open_and_workspace_search(window, tmp_path):
+    from medha.navigation import QuickOpen
+    source = tmp_path / 'unique-file.c'
+    source.write_text('int find_this = 7;\n')
+    opened = []
+    dialog = QuickOpen(tmp_path, opened.append, window)
+    for _ in range(10):
+        QApplication.processEvents()
+    dialog.search.setText('unique-file')
+    assert dialog.list.count() == 1
+    dialog.run_selected()
+    assert opened == [str(source)]
+    window.search_view.query.setText('find_this')
+    window.search_view.search()
+    for _ in range(30):
+        QApplication.processEvents()
+    assert window.search_view.results.count() == 1
+    window.search_view.open_result(window.search_view.results.item(0))
+    assert window.get_current_editor().file_path == str(source)
