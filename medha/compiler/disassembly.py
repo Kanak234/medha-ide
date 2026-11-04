@@ -6,9 +6,9 @@ real-time x86_64 assembly code corresponding to active C code functions.
 
 import os
 import shutil
-from PySide6.QtCore import QProcess, QObject, Signal, Qt
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QLabel, QFontDialog, QPushButton, QHBoxLayout
-from PySide6.QtGui import QFont, QColor, QTextCursor
+from PySide6.QtCore import QProcess
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QLabel, QPushButton, QHBoxLayout
+from PySide6.QtGui import QFont
 
 
 class DisassemblyInspectorWidget(QWidget):

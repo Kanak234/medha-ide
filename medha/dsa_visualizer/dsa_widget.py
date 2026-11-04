@@ -6,10 +6,10 @@ and dynamic layout rendering for Linear and Non-Linear Data Structures.
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGraphicsView, QGraphicsScene,
-    QLabel, QPushButton, QComboBox, QSlider
+    QLabel, QPushButton
 )
-from PySide6.QtGui import QColor, QBrush, QFont, QPainter
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QColor, QBrush, QPainter
+from PySide6.QtCore import Qt
 from medha.dsa_visualizer.tracers.dsa_tracer import DSASnapshot, UniversalDSATracer
 from medha.dsa_visualizer.renderers.linear_renderer import LinearDSARenderer
 from medha.dsa_visualizer.renderers.tree_renderer import TreeDSARenderer

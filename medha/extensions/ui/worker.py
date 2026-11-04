@@ -6,30 +6,17 @@ All network calls run off the UI thread with 10s timeout.
 """
 from __future__ import annotations
 import logging
-from typing import Optional, List
 
 from PySide6.QtCore import QThread, Signal
 
-from medha.extensions.registry import (
-    OpenVSXRegistryClient,
-    SearchResult,
-    ExtensionDetail,
-    ExtensionInfo,
-    NetworkError,
-    NotFoundError,
-    DownloadError,
-)
-from medha.extensions.models import ExtensionClassification
+from medha.extensions.registry import OpenVSXRegistryClient
 from medha.extensions.installer import (
     install_vsix,
     uninstall_extension,
     list_installed_extensions,
-    get_enabled_extensions,
     set_extension_enabled,
 )
 from medha.extensions.contributions import (
-    load_all_themes,
-    load_all_snippets,
     get_all_available_themes,
     get_all_available_snippets,
 )

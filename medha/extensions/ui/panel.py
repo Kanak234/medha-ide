@@ -6,18 +6,15 @@ Features: search, install/uninstall, theme application, snippet browsing.
 """
 from __future__ import annotations
 import logging
-import os
-from pathlib import Path
-from typing import Optional, Dict, List
+from typing import Optional, List
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTabWidget, QListWidget, QListWidgetItem,
-    QLabel, QLineEdit, QPushButton, QScrollArea, QFrame, QSplitter,
-    QTextBrowser, QMessageBox, QMenu, QStyle
+    QLabel, QLineEdit, QPushButton, QFrame, QSplitter,
+    QTextBrowser, QMessageBox
 )
-from PySide6.QtCore import Qt, Signal, QSize, QTimer
-from PySide6.QtGui import QIcon, QPixmap, QFont, QColor, QDesktopServices
-from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QDesktopServices
 
 from medha.extensions.models import (
     ExtensionInfo,
@@ -33,8 +30,6 @@ from medha.extensions.ui.worker import (
     UninstallWorker,
     ListInstalledWorker,
     ToggleEnabledWorker,
-    LoadThemesWorker,
-    LoadSnippetsWorker,
     ApplyThemeWorker,
 )
 
@@ -67,8 +62,6 @@ class ExtensionListItem(QListWidgetItem):
     def update_display(self):
         """Update the item's display text."""
         status = " [Installed]" if self.is_installed else ""
-        classification = self.ext.files.download is not None  # placeholder
-        # Classification will be set from detail
         self.setText(
             f"{self.ext.display_name}{status}\n"
             f"  {self.ext.namespace}.{self.ext.name} v{self.ext.version} • {self.ext.download_count:,} downloads"
@@ -77,9 +70,6 @@ class ExtensionListItem(QListWidgetItem):
     def set_classification(self, classification: ExtensionClassification):
         """Set classification badge."""
         self.classification = classification
-        color = CLASSIFICATION_COLORS.get(classification, "#8b949e")
-        tooltip = CLASSIFICATION_TOOLTIPS.get(classification, "")
-        # We'll render the badge in the delegate
 
 
 class ExtensionDetailWidget(QWidget):
@@ -684,9 +674,8 @@ class ExtensionsPanel(QWidget):
         for i in range(self.results_list.count()):
             item = self.results_list.item(i)
             widget = self.results_list.itemWidget(item)
-            ext = item.data(Qt.UserRole)
             if widget:
-                badge = widget.findChild(QLabel, "")
+                widget.findChild(QLabel, "")
                 # Simple heuristic: if it has themes/snippets it's SUPPORTED
                 # We'll fetch detail on selection instead
 
