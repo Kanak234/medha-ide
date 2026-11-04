@@ -1,3 +1,12 @@
+"""
+MEDHĀ IDE — DebugSession (GDB MI2 + debugpy/DAP).
+WHY the logging below: debug-protocol errors (socket not up yet, malformed
+DAP frame, a debugger that will not exit) used to vanish into
+`except Exception: pass` — "the debugger hangs" was impossible to diagnose.
+Each handler now logs the real error; control flow is unchanged.
+"""
+
+import logging
 import os
 import sys
 import re
@@ -6,6 +15,8 @@ import time
 import socket
 import shutil
 import subprocess
+
+logger = logging.getLogger(__name__)
 
 class DebugSession:
     def __init__(self, target: str, kind: str = "gdb"):
@@ -55,8 +66,11 @@ class DebugSession:
                     self.sock.connect(('127.0.0.1', self.port))
                     connected = True
                     break
-                except Exception:
-                    pass
+                except Exception as e:
+                    # WHY: the adapter takes a moment to listen — refused
+                    # connections here are expected, so keep them at debug.
+                    # Flow: retry until the 50×100 ms budget runs out.
+                    logger.debug("debugpy socket not ready yet: %s", e)
 
             if connected:
                 self.send_dap_request("initialize", {
@@ -140,6 +154,11 @@ class DebugSession:
                     else:
                         break
             except Exception:
+                # WHY: a broken DAP frame (bad JSON, dead socket) used to
+                # look exactly like "no response yet". Log it, then stop
+                # reading — the caller gets {} and the debug timeout still
+                # applies, but the log shows the real cause.
+                logger.exception("reading DAP response failed")
                 break
         return res_dict
 
@@ -219,23 +238,26 @@ class DebugSession:
             self.send_dap_request("continue", {"threadId": self.stopped_thread_id})
 
     def terminate(self) -> None:
+        # WHY: terminate() runs on IDE exit — a debugger that will not die
+        # must be visible in the log (the process is reaped separately by
+        # the caller's lifecycle), not hidden by `pass`.
         if self.kind == "gdb" and self.proc:
             try:
                 self.proc.stdin.write("-gdb-exit\n")
                 self.proc.stdin.flush()
                 self.proc.terminate()
             except Exception:
-                pass
+                logger.exception("asking gdb to exit failed")
         elif self.kind == "debugpy":
             if self.sock:
                 try:
                     self.send_dap_request("disconnect")
                     self.sock.close()
                 except Exception:
-                    pass
+                    logger.exception("sending DAP disconnect failed")
             if self.proc:
                 try:
                     self.proc.terminate()
                 except Exception:
-                    pass
+                    logger.exception("terminating debugpy process failed")
         self.proc = None

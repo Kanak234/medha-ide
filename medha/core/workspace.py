@@ -5,9 +5,12 @@ Supports:
  2. Project/Workspace Mode: Full .medhaproj JSON configuration with structured tree view.
 """
 
+import logging
 import os
 import json
 from PySide6.QtCore import QObject, Signal
+
+logger = logging.getLogger(__name__)
 
 
 class ScratchpadSession:
@@ -45,6 +48,10 @@ class ProjectWorkspace:
                 json.dump(data, f, indent=2)
             return True
         except Exception:
+            # WHY: save returning False with no trace made "my project did
+            # not save" undebuggable (read-only folder? bad path?). Log the
+            # real error; the boolean still says the save failed.
+            logger.exception("saving project %s failed", self.project_file)
             return False
 
 

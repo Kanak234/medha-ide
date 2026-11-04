@@ -1,6 +1,17 @@
+"""
+MEDHĀ IDE — Offline AI assistant (Ollama on localhost).
+WHY logging here: connection failures are expected (Ollama not installed),
+so `available()` must stay quiet-ish — but a *real* error (bad JSON from the
+server, a TLS error) used to vanish into `except Exception: pass`. Log at
+warning/debug so `available()`/`models()` stay non-crashing yet debuggable.
+"""
+
 import json
+import logging
 import urllib.request
 import urllib.error
+
+logger = logging.getLogger(__name__)
 
 class AiAssistant:
     def __init__(self, model: str = "qwen2.5-coder:3b", host: str = "http://127.0.0.1:11434"):
@@ -22,7 +33,12 @@ class AiAssistant:
                         # Auto select first available model if requested is missing
                         self.model = available_models[0]
                     return True
-        except Exception:
+        except Exception as e:
+            # WHY: Ollama being down is normal on a machine without it —
+            # the caller cares about the boolean. But log at debug so a
+            # weird server response is not a mystery. Flow: False → the
+            # AI panel shows "unavailable".
+            logger.debug("Ollama availability probe failed: %s", e)
             return False
         return False
 
@@ -34,8 +50,11 @@ class AiAssistant:
                 if response.status == 200:
                     data = json.loads(response.read().decode("utf-8"))
                     return [m.get("name") for m in data.get("models", [])]
-        except Exception:
-            pass
+        except Exception as e:
+            # WHY: same as available() — a failed probe is not an error to
+            # the rest of the IDE, but swallowing it silently hid real bugs.
+            logger.debug("Ollama models list failed: %s", e)
+            return []
         return []
 
     def complete(self, prompt: str, context: str = "", timeout: float = 120.0) -> str:

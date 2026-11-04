@@ -1,9 +1,19 @@
-import os
+"""
+MEDHĀ IDE — LspClient (clangd / pylsp over stdio).
+WHY logging below: a malformed LSP frame used to vanish into
+`except Exception: pass`, so "go to definition does nothing" had no trace.
+Log the parse failure; empty dict = no result, as before.
+"""
+
 import json
+import logging
+import os
 import time
 import shutil
 import subprocess
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 class LspClient:
     def __init__(self, language: str, root: str):
@@ -112,7 +122,9 @@ class LspClient:
                         if "id" in msg:
                             return msg
                 except Exception:
-                    pass
+                    # WHY: the server may send notifications we cannot parse
+                    # — keep looking for our response, but leave a trace.
+                    logger.exception("parsing LSP message failed")
         return {}
 
     def ensure_file_open(self, file_path: str) -> None:
@@ -195,5 +207,7 @@ class LspClient:
                 time.sleep(0.1)
                 self.proc.terminate()
             except Exception:
-                pass
+                # WHY: same as debugger.terminate() — a language server that
+                # will not exit must show up in logs, not vanish.
+                logger.exception("shutting down LSP server failed")
             self.proc = None
