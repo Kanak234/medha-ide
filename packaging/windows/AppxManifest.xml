@@ -12,7 +12,7 @@
          IgnorableNamespaces="uap rescap">
   <Identity Name="KanakPrabhakar.MEDHIDE"
             Publisher="CN=D47E0796-ADF8-4726-BE39-DCBB2D6B664D"
-            Version="2.0.0.0"
+            Version="2.0.2.0"
             ProcessorArchitecture="x64" />
   <Properties>
     <DisplayName>MEDHĀ IDE</DisplayName>

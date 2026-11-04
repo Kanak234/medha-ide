@@ -62,6 +62,7 @@
     <content_attribute id="sex-themes">none</content_attribute>
   </content_rating>
   <releases>
+    <release version="2.0.2" date="2026-11-05" type="development"><description><p>New workbench and Windows terminal release validation.</p></description></release>
     <release version="2.0.0" date="2026-11-05" type="development">
       <description>
         <p>Release preparation: new VS Code-style workbench and safer editing.</p>

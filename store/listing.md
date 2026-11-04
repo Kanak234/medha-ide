@@ -1,6 +1,6 @@
 # Microsoft Store listing — MEDHĀ IDE
 
-**Prepared version:** 2.0.0 (draft; not published)
+**Prepared version:** 2.0.2 (draft; not published)
 
 **Name:** MEDHĀ IDE
 **Category:** Developer tools (secondary: Education)

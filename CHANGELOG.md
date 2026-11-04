@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.2 — release candidate
+
+- Supersedes the existing Store package 2.0.1.0 with the new workbench.
+- Includes B11/B12 Windows ConPTY and traceback fixes.
+- Adds frozen terminal and C/Turbo acceptance checks; certification remains gated on results.
+
+
 ## 2.0.0 — release preparation (unreleased)
 
 ### Added and improved
