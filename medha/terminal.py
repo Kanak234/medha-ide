@@ -152,12 +152,21 @@ class _UnixPtyProcess(_PtyProcess):
                 pass  # Ignore write errors (shell may have exited)
 
     def send_signal(self, sig):
-        """Send a signal to the child's process group (for Ctrl+C → SIGINT)."""
-        if self._child_pid > 0:
-            try:
-                os.killpg(os.getpgid(self._child_pid), sig)
-            except OSError:
-                pass
+        """Ctrl+C → SIGINT to whatever is running in the FOREGROUND of the terminal.
+        WHY not killpg(shell): with job control the shell puts each command (e.g. `sleep 30`, a C program
+        stuck in a loop) in its OWN process group; signalling the shell's group only reached bash, which
+        ignores SIGINT, so Ctrl+C did nothing (found in review, 2026-11-05). A real terminal does it by
+        sending the interrupt character: the kernel's tty line discipline then signals the foreground
+        group — exactly what we do here. Other signals go to the foreground group via tcgetpgrp()."""
+        if self._master_fd < 0:
+            return
+        try:
+            if sig == signal.SIGINT:
+                os.write(self._master_fd, b"\x03")          # ^C → kernel delivers SIGINT to the foreground job
+            else:
+                os.killpg(os.tcgetpgrp(self._master_fd), sig)
+        except OSError:
+            pass
 
     def shutdown(self):
         if self._child_pid > 0:

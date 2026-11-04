@@ -23,7 +23,7 @@
 
 ### Coming in this release
 
-- **B3 — terminal: coming in this release.** Placeholder for Nemotron's PTY/ConPTY work on `v2-bugs`. Not implemented or claimed as fixed by this preparation PR. Replace this entry only after merge and platform verification.
+- **B3 — real terminal.** The terminal panel now runs your shell in a real pseudo-terminal (Linux/macOS: pty; Windows: ConPTY via pywinpty, QProcess fallback). The "no job control" error is gone; colours, interactive programs and Ctrl+C (interrupts the running program) work. Verified on Linux; Windows ConPTY to be checked on the Store build.
 
 ### Release gates
 
