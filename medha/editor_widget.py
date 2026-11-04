@@ -49,6 +49,48 @@ class MarginArea(QWidget):
                 bottom = top + round(self.code_editor.blockBoundingRect(block).height())
 
 
+class Minimap(QWidget):
+    """A small, clickable overview of the actual document, without a second editor."""
+    def __init__(self, editor):
+        super().__init__(editor)
+        self.editor = editor
+        self.setAccessibleName('Document minimap')
+        editor.textChanged.connect(self.update)
+        editor.verticalScrollBar().valueChanged.connect(self.update)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        colors = self.editor.theme_tokens
+        painter.fillRect(self.rect(), QColor(colors['panel']))
+        count = max(1, self.editor.blockCount())
+        step = min(3.0, self.height() / count)
+        painter.setPen(QColor(colors['muted']))
+        block = self.editor.document().firstBlock()
+        # A bounded overview samples very long documents instead of painting every line.
+        stride = max(1, count // max(1, self.height()))
+        while block.isValid():
+            text = block.text()
+            y = int(block.blockNumber() * step)
+            start = len(text) - len(text.lstrip())
+            painter.drawLine(min(75, start + 4), y, min(76, len(text) + 4), y)
+            block = self.editor.document().findBlockByNumber(block.blockNumber() + stride)
+        top = self.editor.firstVisibleBlock().blockNumber() * step
+        visible = self.editor.viewport().height() / max(1, self.editor.fontMetrics().height())
+        highlight = QColor(colors['accent'])
+        highlight.setAlpha(45)
+        painter.fillRect(0, int(top), self.width(), max(4, int(visible * step)), highlight)
+
+    def mousePressEvent(self, event):
+        count = max(1, self.editor.blockCount())
+        step = min(3.0, self.height() / count)
+        line = min(count - 1, max(0, int(event.position().y() / max(.001, step))))
+        cursor = self.editor.textCursor()
+        cursor.setPosition(self.editor.document().findBlockByNumber(line).position())
+        self.editor.setTextCursor(cursor)
+        self.editor.centerCursor()
+        self.editor.setFocus()
+
+
 class AdvancedCodeEditorWidget(QPlainTextEdit):
     """
     Production-ready C/C++ Code Editor with Margin Breakpoints,
@@ -62,6 +104,7 @@ class AdvancedCodeEditorWidget(QPlainTextEdit):
         self.file_path = file_path
         self.is_modified = False
         self.margin_area = MarginArea(self)
+        self.minimap = Minimap(self)
         self.breakpoints = set()
         self.execution_line = None
         self.snippet_tabstops = []  # List of (tabstop_num, start_pos, end_pos)
@@ -91,11 +134,14 @@ class AdvancedCodeEditorWidget(QPlainTextEdit):
         self.cursorPositionChanged.connect(self.highlight_current_line)
         self.textChanged.connect(self.on_text_changed)
 
+        from PySide6.QtWidgets import QApplication
+        from medha.theme import apply_editor
+        apply_editor(self, QApplication.instance().property('medhaTheme') or 'dark')
         self.update_margin_area_width(0)
         self.highlight_current_line()
 
     def on_text_changed(self):
-        self.is_modified = True
+        self.is_modified = self.document().isModified()
 
     def detect_language(self, path):
         if not path:
@@ -117,7 +163,7 @@ class AdvancedCodeEditorWidget(QPlainTextEdit):
         return 30 + self.fontMetrics().horizontalAdvance('9') * digits
 
     def update_margin_area_width(self, _):
-        self.setViewportMargins(self.margin_area_width(), 0, 0, 0)
+        self.setViewportMargins(self.margin_area_width(), 0, 80, 0)
 
     def update_margin_area(self, rect, dy):
         if dy:
@@ -131,6 +177,7 @@ class AdvancedCodeEditorWidget(QPlainTextEdit):
         super().resizeEvent(event)
         cr = self.contentsRect()
         self.margin_area.setGeometry(QRect(cr.left(), cr.top(), self.margin_area_width(), cr.height()))
+        self.minimap.setGeometry(cr.right() - 79, cr.top(), 80, cr.height())
 
     def toggle_breakpoint(self, line_num):
         if line_num in self.breakpoints:
@@ -160,7 +207,7 @@ class AdvancedCodeEditorWidget(QPlainTextEdit):
 
     def marginAreaPaintEvent(self, event):
         painter = QPainter(self.margin_area)
-        painter.fillRect(event.rect(), QColor("#161b22"))
+        painter.fillRect(event.rect(), QColor(self.theme_tokens["line"]))
 
         block = self.firstVisibleBlock()
         block_number = block.blockNumber()
@@ -183,7 +230,7 @@ class AdvancedCodeEditorWidget(QPlainTextEdit):
                     painter.drawText(16, top, 12, self.fontMetrics().height(), Qt.AlignLeft, "▶")
 
                 # 3. Draw Line Number
-                painter.setPen(QColor("#a1a3ab") if block_number == curr_block_num else QColor("#4b5059"))
+                painter.setPen(QColor(self.theme_tokens["fg"] if block_number == curr_block_num else self.theme_tokens["muted"]))
                 painter.setFont(self.font())
                 painter.drawText(0, top, self.margin_area.width() - 5, self.fontMetrics().height(), Qt.AlignRight, str(line_num))
 
@@ -197,7 +244,7 @@ class AdvancedCodeEditorWidget(QPlainTextEdit):
         if not self.isReadOnly():
             # Current cursor line (#21262d)
             selection = QTextEdit.ExtraSelection()
-            selection.format.setBackground(QColor("#161b22"))
+            selection.format.setBackground(QColor(self.theme_tokens["line"]))
             selection.format.setProperty(QTextFormat.Property.FullWidthSelection, True)
             selection.cursor = self.textCursor()
             selection.cursor.clearSelection()
@@ -207,7 +254,7 @@ class AdvancedCodeEditorWidget(QPlainTextEdit):
             if self.execution_line and self.execution_line > 0:
                 exec_block = self.document().findBlockByLineNumber(self.execution_line - 1)
                 exec_sel = QTextEdit.ExtraSelection()
-                exec_sel.format.setBackground(QColor("#3d3200"))
+                exec_sel.format.setBackground(QColor(self.theme_tokens["execution"]))
                 exec_sel.format.setProperty(QTextFormat.Property.FullWidthSelection, True)
                 c = QTextCursor(self.document())
                 c.setPosition(exec_block.position())

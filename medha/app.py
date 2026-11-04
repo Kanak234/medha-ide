@@ -579,6 +579,8 @@ class MedhaMainWindow(QMainWindow):
         git_index = self.workbench.add_view('Git', self.git_view, QStyle.StandardPixmap.SP_DirLinkIcon)
         add(menus['View'], 'Search Workspace', 'Ctrl+Shift+F', lambda: self.workbench.activate(search_index))
         add(menus['View'], 'Source Control', 'Ctrl+Shift+G', lambda: self.workbench.activate(git_index))
+        add(menus['View'], 'Medhā Dark', None, lambda: self.apply_theme('dark'))
+        add(menus['View'], 'Medhā Light', None, lambda: self.apply_theme('light'))
         self.command_centre = QPushButton('Search commands…  Ctrl+Shift+P')
         self.command_centre.setObjectName('commandCentre')
         self.command_centre.clicked.connect(self.show_command_palette)
@@ -656,11 +658,42 @@ class MedhaMainWindow(QMainWindow):
             self.lbl_cursor_pos.setText(f"Ln {line}, Col {col} | {lang}")
 
     def apply_dark_theme(self):
+        self.apply_theme(self.workbench.prefs.value('theme', 'dark'))
+
+    def apply_theme(self, name):
         from PySide6.QtWidgets import QApplication
-        from medha.theme import DARK_QSS
-        app_inst = QApplication.instance()
-        if app_inst:
-            app_inst.setStyleSheet(DARK_QSS)
+        from medha.theme import stylesheet, apply_editor
+        self.theme_name = name if name in ('dark', 'light') else 'dark'
+        self.workbench.prefs.setValue('theme', self.theme_name)
+        # Legacy tools supplied local dark styles. Clear those overrides so the
+        # shared QSS controls the whole workbench in both built-in themes.
+        from shiboken6 import isValid
+        for widget in self.findChildren(QWidget):
+            if isValid(widget) and widget.styleSheet():
+                widget.setStyleSheet('')
+        app = QApplication.instance()
+        qss = stylesheet(self.theme_name)
+        self.setStyleSheet(qss)
+        app.setProperty('medhaTheme', self.theme_name)
+        for index in range(self.tab_widget.count()):
+            editor = self.tab_widget.widget(index)
+            if isinstance(editor, AdvancedCodeEditorWidget):
+                apply_editor(editor, self.theme_name)
+            self.install_tab_close(editor)
+        if hasattr(self, 'lbl_theme'):
+            self.lbl_theme.setText('Medhā ' + self.theme_name.title())
+
+    def install_tab_close(self, widget):
+        from PySide6.QtWidgets import QTabBar, QToolButton
+        index = self.tab_widget.indexOf(widget)
+        button = QToolButton()
+        button.setObjectName('tabClose')
+        button.setText('×')
+        button.setAccessibleName('Close tab')
+        button.setFixedSize(18, 18)
+        button.clicked.connect(lambda: self.close_tab(self.tab_widget.indexOf(widget)))
+        self.tab_widget.tabBar().setTabButton(index, QTabBar.ButtonPosition.RightSide, button)
+        # Resolve the tab index at click time: closing earlier tabs shifts indices.
 
     def get_current_editor(self):
         widget = self.tab_widget.currentWidget()
@@ -671,11 +704,13 @@ class MedhaMainWindow(QMainWindow):
     def create_untitled_tab(self, title="untitled.c", content=""):
         editor = AdvancedCodeEditorWidget(file_path=None, parent=self)
         editor.setPlainText(content)
+        editor.document().setModified(False)
         editor.is_modified = False
         editor.cursorPositionChanged.connect(self.update_cursor_status)
         editor.textChanged.connect(lambda e=editor: self.update_tab_title(e))
         editor.breakpoint_toggled.connect(self.on_breakpoint_toggled)
         idx = self.tab_widget.addTab(editor, title.replace("&", "&&"))
+        self.install_tab_close(editor)
         self.tab_widget.setCurrentIndex(idx)
         self.update_cursor_status()
 
@@ -696,11 +731,13 @@ class MedhaMainWindow(QMainWindow):
             filename = os.path.basename(path)
             editor = AdvancedCodeEditorWidget(file_path=path, parent=self)
             editor.setPlainText(content)
+            editor.document().setModified(False)
             editor.is_modified = False
             editor.cursorPositionChanged.connect(self.update_cursor_status)
             editor.textChanged.connect(lambda e=editor: self.update_tab_title(e))
             editor.breakpoint_toggled.connect(self.on_breakpoint_toggled)
             idx = self.tab_widget.addTab(editor, filename.replace("&", "&&"))
+            self.install_tab_close(editor)
             self.tab_widget.setCurrentIndex(idx)
             self.lbl_status.setText(f"Opened file: {path}")
             self.update_cursor_status()
@@ -743,6 +780,7 @@ class MedhaMainWindow(QMainWindow):
             try:
                 with open(editor.file_path, 'w', encoding='utf-8') as f:
                     f.write(editor.toPlainText())
+                editor.document().setModified(False)
                 editor.is_modified = False
                 self.update_tab_title(editor)
                 self.lbl_status.setText(f"Saved: {editor.file_path}")
@@ -762,6 +800,7 @@ class MedhaMainWindow(QMainWindow):
                 with open(path, 'w', encoding='utf-8') as f:
                     f.write(editor.toPlainText())
                 editor.file_path = path
+                editor.document().setModified(False)
                 editor.is_modified = False
                 self.update_tab_title(editor)
                 self.lbl_status.setText(f"Saved: {path}")

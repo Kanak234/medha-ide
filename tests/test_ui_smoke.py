@@ -1,6 +1,6 @@
 """Open the real Qt window offline; individual workbench contracts live here."""
 import pytest
-from PySide6.QtCore import QSettings
+from PySide6.QtCore import QSettings, QCoreApplication, QEvent
 from PySide6.QtWidgets import QApplication
 from PySide6.QtTest import QTest
 from medha import settings
@@ -21,6 +21,8 @@ def window(tmp_path, monkeypatch):
     QTest.qWait(150)
     yield win
     win.close()
+    win.deleteLater()
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
     app.processEvents()
     settings.reset_cache_for_tests()
 
@@ -107,3 +109,17 @@ def test_quick_open_and_workspace_search(window, tmp_path):
     assert window.search_view.results.count() == 1
     window.search_view.open_result(window.search_view.results.item(0))
     assert window.get_current_editor().file_path == str(source)
+
+
+def test_themes_apply_to_existing_and_new_editors(window):
+    from medha.theme import LIGHT, DARK
+    window.create_untitled_tab(content='int value = 1;')
+    editor = window.get_current_editor()
+    for name, colors in [('light', LIGHT), ('dark', DARK)]:
+        window.apply_theme(name)
+        QApplication.processEvents()
+        assert editor.theme_tokens['bg'] == colors['bg']
+        assert not editor.is_modified
+        assert editor.minimap.width() == 80
+        window.create_untitled_tab()
+        assert window.get_current_editor().theme_tokens['bg'] == colors['bg']
