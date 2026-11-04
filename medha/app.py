@@ -1,7 +1,7 @@
 import os
 import sys
 import psutil
-from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QTabWidget, QDockWidget, QFileDialog, QMessageBox, QLabel, QStatusBar, QGraphicsOpacityEffect
+from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QTabWidget, QFileDialog, QMessageBox, QLabel, QStatusBar, QGraphicsOpacityEffect
 from PySide6.QtGui import QAction, QIcon, QKeySequence, QTextCursor
 from PySide6.QtCore import Qt, QPropertyAnimation
 
@@ -36,6 +36,8 @@ def get_app_icon_path() -> str:
     return repo_icon
 
 
+from PySide6.QtWidgets import QTextEdit
+from medha.workbench import ToolDock, Workbench
 from medha.editor import CodeEditorWidget
 from medha.editor_widget import AdvancedCodeEditorWidget, CodeOutlineWidget
 from medha.project_manager import ProjectExplorerWidget
@@ -152,7 +154,7 @@ class MedhaMainWindow(QMainWindow):
         self.explorer.file_selected.connect(self.open_file_path)
         self.explorer.config_changed.connect(self.on_project_config_changed)
 
-        self.dock_explorer = QDockWidget("Project Explorer", self)
+        self.dock_explorer = ToolDock("Project Explorer", self)
         self.dock_explorer.setWidget(self.explorer)
         self.dock_explorer.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.dock_explorer)
@@ -167,7 +169,10 @@ class MedhaMainWindow(QMainWindow):
         self.safety_panel.diagnostic_selected.connect(self.navigate_to_problem)
 
         self.bottom_tabs.addTab(self.terminal, "Terminal")
-        self.bottom_tabs.addTab(self.problems, "Compiler Output && Issues")
+        self.output_log = QTextEdit()
+        self.output_log.setReadOnly(True)
+        self.bottom_tabs.addTab(self.output_log, "Output")
+        self.bottom_tabs.addTab(self.problems, "Problems")
         self.bottom_tabs.addTab(self.safety_panel, "Safety Linter (cppcheck)")
         # v2: offline security scan of the student's own code (CWE + explanation)
         self.security_panel = SecurityPanel()
@@ -189,7 +194,7 @@ class MedhaMainWindow(QMainWindow):
             }
         """)
 
-        self.dock_bottom = QDockWidget("Console && Safety Diagnostics", self)
+        self.dock_bottom = ToolDock("Console && Safety Diagnostics", self)
         self.dock_bottom.setWidget(self.bottom_tabs)
         self.dock_bottom.setAllowedAreas(Qt.DockWidgetArea.BottomDockWidgetArea | Qt.DockWidgetArea.TopDockWidgetArea)
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.dock_bottom)
@@ -197,19 +202,19 @@ class MedhaMainWindow(QMainWindow):
         # Dock Widget 3 — Universal DSA Visualizer (Right)
         self.dsa_tracer = UniversalDSATracer(self)
         self.dsa_widget = DSAVisualizerWidget(tracer=self.dsa_tracer, parent=self)
-        self.dock_dsa = QDockWidget("DSA Visualizer Engine", self)
+        self.dock_dsa = ToolDock("DSA Visualizer Engine", self)
         self.dock_dsa.setWidget(self.dsa_widget)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.dock_dsa)
 
         # Dock Widget 4 — Visual Memory & Pointer Inspector (Right)
         self.memory_view = MemoryVisualizerWidget(self)
-        self.dock_memory = QDockWidget("Live Memory && Pointers", self)
+        self.dock_memory = ToolDock("Live Memory && Pointers", self)
         self.dock_memory.setWidget(self.memory_view)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.dock_memory)
 
         # Dock Widget 5 — Assembly Inspector (Right)
         self.asm_inspector = DisassemblyInspectorWidget(self)
-        self.dock_asm = QDockWidget("Live Disassembly (gcc -S)", self)
+        self.dock_asm = ToolDock("Live Disassembly (gcc -S)", self)
         self.dock_asm.setWidget(self.asm_inspector)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.dock_asm)
 
@@ -224,50 +229,36 @@ class MedhaMainWindow(QMainWindow):
         self.gdb_engine.stopped_at.connect(self.on_gdb_stopped_at)
         self.gdb_engine.variables_updated.connect(self.on_gdb_variables_updated)
 
-        self.dock_gdb = QDockWidget("GDB Interactive Debugger", self)
+        self.dock_gdb = ToolDock("GDB Interactive Debugger", self)
         self.dock_gdb.setWidget(self.gdb_panel)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.dock_gdb)
 
         # Dock Widget 7 — Symbol Outline (Right)
         self.outline_panel = CodeOutlineWidget(self)
         self.outline_panel.symbol_selected.connect(self.navigate_to_line)
-        self.dock_outline = QDockWidget("Symbol Outline", self)
+        self.dock_outline = ToolDock("Symbol Outline", self)
         self.dock_outline.setWidget(self.outline_panel)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.dock_outline)
 
         # AI Assistant Right Dock (P7)
         from medha.ai_panel import AiAssistantPanelWidget
         self.ai_panel = AiAssistantPanelWidget(self)
-        self.dock_ai = QDockWidget("Offline AI Assistant", self)
+        self.dock_ai = ToolDock("Offline AI Assistant", self)
         self.dock_ai.setWidget(self.ai_panel)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.dock_ai)
 
         # Extensions Panel (Right Dock) - P8 Extensions
         self.extensions_panel = ExtensionsPanel(self)
         self.extensions_panel.theme_apply_requested.connect(self._on_theme_apply_requested)
-        self.dock_extensions = QDockWidget("Extensions", self)
+        self.dock_extensions = ToolDock("Extensions", self)
         self.dock_extensions.setWidget(self.extensions_panel)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.dock_extensions)
 
         # v2: Turbo C screen — graphics.h / conio.h output drawn from the real framebuffer
         self.turbo_panel = TurboPanel(self)
-        self.dock_turbo = QDockWidget("Turbo C Screen (640×480)", self)
+        self.dock_turbo = ToolDock("Turbo C Screen (640×480)", self)
         self.dock_turbo.setWidget(self.turbo_panel)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.dock_turbo)
-
-        # Tabify right dock widgets for clean UI
-        self.tabifyDockWidget(self.dock_dsa, self.dock_memory)
-        self.tabifyDockWidget(self.dock_memory, self.dock_asm)
-        self.tabifyDockWidget(self.dock_asm, self.dock_gdb)
-        self.tabifyDockWidget(self.dock_gdb, self.dock_outline)
-        self.tabifyDockWidget(self.dock_outline, self.dock_ai)
-        self.tabifyDockWidget(self.dock_ai, self.dock_extensions)
-        self.tabifyDockWidget(self.dock_extensions, self.dock_turbo)
-
-        # Dock Fade-in Animations
-        self.setup_dock_fade_in(self.dock_explorer)
-        self.setup_dock_fade_in(self.dock_bottom)
-        self.setup_dock_fade_in(self.dock_dsa)
 
         # Process Runner & Analyzer Engines
         self.runner = ProcessRunner(self)
@@ -290,6 +281,8 @@ class MedhaMainWindow(QMainWindow):
 
         # Setup MenuBar & StatusBar
         self.create_menu_bar()
+        self.workbench = Workbench(self)
+        self.setCentralWidget(self.workbench)
         self.create_status_bar()
         self.apply_dark_theme()
 
@@ -882,6 +875,7 @@ class MedhaMainWindow(QMainWindow):
         self.terminal.append_output(f"[Build Exit {code}] Artifact: {artifact}\n{out}\n", color="#79c0ff")
 
     def on_runner_output(self, text, stream_type):
+        self.output_log.insertPlainText(text)
         color = "#f85149" if stream_type == 'stderr' else None
         self.terminal.append_output(text, color=color)
 
@@ -1008,6 +1002,7 @@ class MedhaMainWindow(QMainWindow):
         ShortcutsDialog(collect_actions(self.menuBar()), self).exec()
 
     def closeEvent(self, event):
+        self.workbench.save()
         # Stop child processes while their receiving widgets still exist. Otherwise
         # a late disassembly callback can access a deleted QTextEdit during teardown.
         from PySide6.QtCore import QProcess

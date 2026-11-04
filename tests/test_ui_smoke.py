@@ -42,3 +42,32 @@ def test_titles_escape_literal_ampersands(window, tmp_path):
     for tabs in window.findChildren(QTabWidget):
         titles.extend(tabs.tabText(i) for i in range(tabs.count()))
     assert all(not re.search(r'(?<!&)&(?!&)', title) for title in titles)
+
+
+@pytest.mark.parametrize('size', [(1366, 768), (1920, 1080)])
+def test_editor_width_and_tool_routing(window, size):
+    window.resize(*size)
+    QTest.qWait(50)
+    assert window.tab_widget.width() >= size[0] * .6
+    for dock in window.workbench.routes:
+        dock.toggleViewAction().trigger()
+        QApplication.processEvents()
+        assert window.tab_widget.width() >= size[0] * .6
+    window.workbench.toggle_sidebar()
+    assert window.workbench.sidebar.isHidden()
+    window.workbench.toggle_panel()
+    assert window.bottom_tabs.isHidden()
+    window.dock_turbo.show()
+    assert not window.bottom_tabs.isHidden()
+
+
+def test_layout_preferences_roundtrip(window):
+    shell = window.workbench
+    shell.sidebar_width = 320
+    shell.panel_height = 180
+    shell.toggle_sidebar()
+    shell.save()
+    prefs = QSettings(QSettings.Format.IniFormat, QSettings.Scope.UserScope, 'MEDHA', 'Workbench-v2')
+    assert prefs.value('sidebar_width', type=int) == 320
+    assert prefs.value('panel_height', type=int) == 180
+    assert prefs.value('sidebar_visible', type=bool) is False
