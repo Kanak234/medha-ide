@@ -4,13 +4,32 @@
 
 # MEDHĀ IDE
 
-**Native PySide6 offline IDE for C/C++/Python — editor, real compiler runs, terminal, problems panel, LSP (clangd/pylsp), GDB/debugpy debugger, Git, CMake build, local Ollama AI panel, Open VSX extensions (themes/snippets/grammar subset).**
+**Offline C, C++, Java and Python IDE with a VS Code-style workbench, visual learning tools and Turbo C compatibility.**
+
+![Medhā 2.0 workbench with editor and minimap](store/screenshots-v2/02-editor-minimap.png)
+
+The 2.0.0 workbench release is being prepared here; Store links install the
+currently published package. See [CHANGELOG](CHANGELOG.md) for release status.
+
+[Get MEDHĀ IDE from Microsoft Store](https://apps.microsoft.com/detail/9ndcdm1mmh5t) ·
+[Install from Snap Store](https://snapcraft.io/medha-ide) ·
+[View all seven new UI screenshots](store/screenshots-v2/README.md)
+
+## New workbench
+
+- Activity bar, collapsible sidebar and bottom panel; Ctrl+B/Ctrl+J and remembered sizes.
+- Medhā Dark and Light themes, syntax highlighting, editor minimap and grey tab-close buttons.
+- Command centre and palette (Ctrl+Shift+P), Quick Open (Ctrl+P) and workspace search.
+- Welcome tab with New/Open, Recent files, Turbo C examples and Learn DSA visually.
+- DSA, memory, disassembly, debug, AI and extension tools remain accessible in the new layout.
+- Real document, branch and compiler status; optional CPU/RAM display.
+- Save/Discard/Cancel protection for unsaved documents.
 
 ---
 
 ## What MEDHA Is
 
-MEDHĀ is a **native desktop IDE** written in Python with PySide6 (Qt 6). It is offline-first: everything works without internet except searching/downloading extensions from Open VSX. No Electron, no web views, no bundled browsers. It integrates your system toolchain (gcc, g++, gdb, python3, clangd, pylsp, cmake, git, ollama) into a single window with dockable panels.
+MEDHĀ is a **native desktop IDE** written in Python with PySide6 (Qt 6). Editing and local toolchains work offline. Open VSX downloads need internet, and optional AI needs a reachable Ollama service. No Electron, no web views, no bundled browsers. It integrates your system toolchain (gcc, g++, gdb, python3, clangd, pylsp, cmake, git, ollama) into one editor-first workbench.
 
 **Not a web app.** The `legacy/` folder (archived) was a React/Vite/Monaco prototype — it is not MEDHA.
 
@@ -41,9 +60,30 @@ MEDHĀ is a **native desktop IDE** written in Python with PySide6 (Qt 6). It is 
 
 ## Install
 
+### Windows
+
+Install [MEDHĀ IDE from Microsoft Store](https://apps.microsoft.com/detail/9ndcdm1mmh5t).
+The packaged app includes offline GCC/G++, Java and Python toolchains.
+
+### Linux (Snap)
+
+Use the [Snap Store listing](https://snapcraft.io/medha-ide), or:
+
+```sh
+sudo snap install medha-ide
+# Optional: allow projects on removable drives
+sudo snap connect medha-ide:removable-media
+```
+
+The strict Snap includes compilers but does not support GDB/ptrace or direct use
+of host-installed tools. Git, CMake, cppcheck and external language servers are
+not bundled in this Snap. Source builds can use installed system tools.
+
+### From source
+
 ```bash
 # 1. Clone and enter
-git clone <this-repo> medha-ide
+git clone https://github.com/Kanak234/medha-ide.git
 cd medha-ide
 
 # 2. Create venv and install deps
@@ -70,8 +110,10 @@ python3 -m venv .venv
 ## Run Tests & Validators
 
 ```bash
-# Unit tests
-.venv/bin/python -m pytest tests -q
+# Offline unit tests (real network tests require MEDHA_NETWORK_TESTS=1)
+QT_QPA_PLATFORM=offscreen .venv/bin/python -m pytest -q
+.venv/bin/python -m pyflakes medha
+QT_QPA_PLATFORM=offscreen .venv/bin/python -m pytest tests/test_ui_smoke.py -q
 
 # Adversarial validator (Phases 1-2): window, runner, terminal, diagnostics
 .venv/bin/python verify_medha.py
@@ -92,15 +134,16 @@ python3 -m venv .venv
 - **No VS Code JavaScript extensions** — only Open VSX extensions that are pure data (themes, snippets, TextMate grammars). Node.js-based extensions (language servers, debuggers, formatters) cannot run.
 - **LSP requires external binaries** — `clangd` for C/C++, `pylsp` for Python. Install them separately; MEDHA will auto-detect if on PATH.
 - **Debugpy for Python** — install via `pip install debugpy` (or `--break-system-packages`).
-- **No bundled compilers/runtimes** — uses your system `gcc`, `g++`, `python3`, `cmake`, `git`.
-- **Linux-first** — Wayland/X11 via Qt. Windows/macOS untested.
+- **Tool availability depends on the package** — Store/Snap builds bundle compilers; source builds use configured or system tools. The strict Snap restrictions are listed above.
+- **Release preparation** — these new screenshots were captured on Linux; Windows 2.0.0 build/install/launch/uninstall acceptance remains pending.
+- **Interactive terminal (B3)** — PTY/ConPTY improvements are coming in this release on `v2-bugs`; they are not yet part of this preparation branch.
 - **No web browser, no Monaco, no LibreOffice, no VLC, no game engine** — those were in the archived `legacy/` prototype.
 
 ---
 
 ## Logo
 
-The logo mark (`medha/assets/logo-mark.svg`) is shown above. If you don't see it, the file may be at `video-editor/logo-mark.svg` in the parent workspace.
+The logo mark is in [`docs/assets/logo-mark.svg`](docs/assets/logo-mark.svg).
 
 ---
 

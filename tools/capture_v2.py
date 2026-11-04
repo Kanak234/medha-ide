@@ -16,6 +16,7 @@ from medha import settings
 parser = argparse.ArgumentParser()
 parser.add_argument('--phase', default='after')
 parser.add_argument('--welcome', action='store_true')
+parser.add_argument('--store', action='store_true', help='Capture seven 1920x1080 Store scenes with real local sample execution')
 args = parser.parse_args()
 app = QApplication([])
 output = Path(__file__).resolve().parents[1] / 'docs/screenshots/v2'
@@ -30,6 +31,13 @@ with tempfile.TemporaryDirectory(prefix='medha-capture-') as directory:
     source = project / 'hello.c'
     source.write_text('''// MEDHĀ · learn by building\n#include <stdio.h>\n\nint main(void) {\n    const char *name = "world";\n    int numbers[] = {8, 3, 5, 1, 9};\n\n    printf("Hello, %s!\\n", name);\n    for (int i = 0; i < 5; ++i) {\n        printf("numbers[%d] = %d\\n", i, numbers[i]);\n    }\n\n    return 0;\n}\n''')
     window = MedhaMainWindow(str(project))
+    if args.store:
+        from store_scenes import capture_store
+        try:
+            capture_store(window, project, source, Path(__file__).resolve().parents[1] / 'store/screenshots-v2')
+        finally:
+            window.close()
+        sys.exit(0)
     if not args.welcome:
         window.open_file_path(str(source))
     for theme in (['dark', 'light'] if hasattr(window, 'apply_theme') else ['dark']):

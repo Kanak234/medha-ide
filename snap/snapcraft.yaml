@@ -16,6 +16,8 @@ summary: Offline IDE for C, C++, Java, Python and Turbo C graphics.h
 description: |
   MEDHA is a native desktop IDE (Python + PySide6/Qt 6) with bundled GCC/G++,
   Eclipse Temurin JDK 25 and Python for offline C, C++, Java and Python programs.
+  - VS Code-style workbench, dark/light themes and editor minimap
+  - Command centre, Quick Open and Welcome with recent files
   - Multi-tab editor with syntax highlighting and symbol outline
   - Compile and run with a Problems panel and integrated terminal
   - Turbo C mode: graphics.h/conio.h in a 640x480 panel
@@ -38,7 +40,7 @@ icon: snap/gui/io.github.Kanak234.Medha.png
 base: core24
 confinement: strict
 grade: stable
-# WHY: version comes from medha/__init__.py so the snap and the app never disagree.
+# Release preparation: 2.0.0. Version comes from medha/__init__.py.
 adopt-info: medha-app
 
 # WHY: amd64 only for the first release (smaller risk, faster build). Add arm64 later.
@@ -118,7 +120,8 @@ parts:
       craftctl default
       # WHERE: read __version__ = "x.y.z" from medha/__init__.py -> snap version
       VERSION=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' medha/__init__.py)
-      craftctl set version="${VERSION:-1.1.0}"
+      : "${VERSION:?Missing app version}"
+      craftctl set version="$VERSION"
 
   launcher:
     plugin: dump

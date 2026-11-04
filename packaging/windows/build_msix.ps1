@@ -37,7 +37,10 @@ if (-not $gui.WaitForExit(120000)) { $gui.Kill(); throw "GUI startup timed out" 
 if ($gui.ExitCode -ne 0 -or -not (Test-Path $env:MEDHA_SMOKE_RESULT)) { throw "GUI startup failed (exit $($gui.ExitCode))" }
 if ((Get-Content $env:MEDHA_SMOKE_RESULT -Raw | ConvertFrom-Json).status -ne "PASS") { throw "GUI smoke test failed" }
 Copy-Item -Recurse dist\MEDHA "$layout\MEDHA"
-(Get-Content packaging\windows\AppxManifest.xml -Raw).Replace("__VERSION__", $msixVer) | Set-Content "$layout\AppxManifest.xml" -Encoding utf8
+# Keep the checked-in release version readable, while future builds derive it from the app.
+[xml]$manifest = Get-Content packaging\windows\AppxManifest.xml -Raw
+$manifest.Package.Identity.Version = $msixVer
+$manifest.Save("$layout\AppxManifest.xml")
 # MSIX rejects some file names (makeappx error 0x8007007b). Drop NSIS/7z leftovers
 # whose names start with '$', then report any remaining name outside the safe set.
 # '[' and ']' are not allowed in MSIX/OPC part names — 7-Zip leaves "[NSIS].nsi"

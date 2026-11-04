@@ -62,6 +62,18 @@
     <content_attribute id="sex-themes">none</content_attribute>
   </content_rating>
   <releases>
+    <release version="2.0.0" date="2026-11-05" type="development">
+      <description>
+        <p>Release preparation: new VS Code-style workbench and safer editing.</p>
+        <ul>
+          <li>Activity bar, collapsible sidebar and panel with more space for code</li>
+          <li>Medhā Dark and Light themes, editor minimap and Welcome tab</li>
+          <li>Command centre, searchable commands and Quick Open</li>
+          <li>Correct ampersand titles and Save/Discard/Cancel protection</li>
+          <li>Offline test defaults, clean lint and safer process shutdown</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.1.0" date="2026-10-21">
       <description>
         <p>First public release for Snap Store.</p>
