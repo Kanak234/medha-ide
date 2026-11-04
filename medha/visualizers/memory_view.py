@@ -6,12 +6,9 @@ Renders interactive graphical maps of:
  3. Pointer Arrows linking pointers to target memory addresses
 """
 
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QGraphicsView, QGraphicsScene,
-    QGraphicsRectItem, QGraphicsTextItem, QGraphicsLineItem, QLabel, QPushButton
-)
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QGraphicsView, QGraphicsScene, QLabel, QPushButton
 from PySide6.QtGui import QColor, QPen, QBrush, QFont, QPainter
-from PySide6.QtCore import Qt, QPointF
+from PySide6.QtCore import Qt
 
 
 class MemoryVisualizerWidget(QWidget):
@@ -74,7 +71,7 @@ class MemoryVisualizerWidget(QWidget):
         y_offset = 40
         stack_boxes = {}
         for name, val, addr in stack_vars:
-            rect = self.scene.addRect(20, y_offset, 220, 40, QPen(QColor("#1f6feb"), 1.5), QBrush(QColor("#161b22")))
+            self.scene.addRect(20, y_offset, 220, 40, QPen(QColor('#1f6feb'), 1.5), QBrush(QColor('#161b22')))
             txt = self.scene.addText(f"{name}: {val}\nAddr: {addr}", QFont("Monospace", 8))
             txt.setDefaultTextColor(QColor("#c9d1d9"))
             txt.setPos(25, y_offset + 2)
@@ -88,7 +85,7 @@ class MemoryVisualizerWidget(QWidget):
 
         hy_offset = 40
         for ptr_name, heap_addr, size in heap_allocations:
-            rect = self.scene.addRect(320, hy_offset, 220, 45, QPen(QColor("#238636"), 1.5), QBrush(QColor("#091d14")))
+            self.scene.addRect(320, hy_offset, 220, 45, QPen(QColor('#238636'), 1.5), QBrush(QColor('#091d14')))
             txt = self.scene.addText(f"Heap Chunk @ {heap_addr}\nSize: {size} bytes (via {ptr_name})", QFont("Monospace", 8))
             txt.setDefaultTextColor(QColor("#7ee787"))
             txt.setPos(325, hy_offset + 2)
@@ -96,7 +93,7 @@ class MemoryVisualizerWidget(QWidget):
             # Draw Pointer Arrow connecting Stack Pointer to Heap Chunk
             if ptr_name in stack_boxes:
                 sx, sy = stack_boxes[ptr_name]
-                line = self.scene.addLine(sx, sy, 320, hy_offset + 22, QPen(QColor("#f2cc60"), 2, Qt.DashLine))
+                self.scene.addLine(sx, sy, 320, hy_offset + 22, QPen(QColor('#f2cc60'), 2, Qt.DashLine))
             hy_offset += 55
 
     def render_sample_memory(self):

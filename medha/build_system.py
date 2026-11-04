@@ -7,7 +7,7 @@ Provides asynchronous QProcess build runner with GCC/Clang diagnostic error pars
 import os
 import re
 import shutil
-from PySide6.QtCore import QProcess, QObject, Signal, Qt
+from PySide6.QtCore import QProcess, QObject, Signal
 
 
 class BuildDiagnostic:

@@ -11,9 +11,8 @@ Never executes any JS code from extensions.
 from __future__ import annotations
 import json
 import logging
-import os
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, List, Optional, Any
 
 from medha.extensions.models import (
     ExtensionManifest,

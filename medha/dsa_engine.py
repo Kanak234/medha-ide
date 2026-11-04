@@ -7,8 +7,8 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGraphicsView, QGraphicsScene,
     QLabel, QPushButton
 )
-from PySide6.QtGui import QColor, QPen, QBrush, QFont, QPainter, QPolygonF
-from PySide6.QtCore import Qt, QPointF
+from PySide6.QtGui import QColor, QPen, QBrush, QFont, QPainter
+from PySide6.QtCore import Qt
 
 
 class DSANodeData:
@@ -99,7 +99,7 @@ class DynamicDSAVisualizerEngine(QWidget):
         title.setPos(20, 20)
 
         for i, node in enumerate(snapshot.nodes):
-            rect = self.scene.addRect(x, y, 60, 50, QPen(QColor("#30363d"), 2), QBrush(QColor("#161b22")))
+            self.scene.addRect(x, y, 60, 50, QPen(QColor('#30363d'), 2), QBrush(QColor('#161b22')))
             txt = self.scene.addText(str(node.label), QFont("Monospace", 10, QFont.Bold))
             txt.setDefaultTextColor(QColor("#ffffff"))
             txt.setPos(x + 20, y + 12)
@@ -114,7 +114,7 @@ class DynamicDSAVisualizerEngine(QWidget):
         title.setPos(20, 20)
 
         for node in snapshot.nodes:
-            rect = self.scene.addRect(x, y, 90, 50, QPen(QColor("#238636"), 2), QBrush(QColor("#0d1117")))
+            self.scene.addRect(x, y, 90, 50, QPen(QColor('#238636'), 2), QBrush(QColor('#0d1117')))
             txt = self.scene.addText(str(node.label), QFont("Monospace", 10, QFont.Bold))
             txt.setDefaultTextColor(QColor("#7ee787"))
             txt.setPos(x + 25, y + 12)

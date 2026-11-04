@@ -9,12 +9,8 @@ Signals UI updates for editor execution line highlighting and margin breakpoints
 
 import os
 import re
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QTabWidget, QTableWidget, QTableWidgetItem,
-    QHeaderView, QPushButton, QLineEdit, QLabel, QSplitter
-)
-from PySide6.QtGui import QColor, QFont
-from PySide6.QtCore import Qt, Signal, QObject
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QTabWidget, QTableWidget, QTableWidgetItem, QHeaderView, QPushButton, QLineEdit
+from PySide6.QtCore import Signal, QObject
 from medha.debugger import DebugSession
 
 

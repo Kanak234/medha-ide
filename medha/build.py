@@ -1,8 +1,6 @@
 import os
-import re
 import shutil
 import subprocess
-from pathlib import Path
 
 class BuildSystem:
     def __init__(self, project_dir: str):

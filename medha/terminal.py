@@ -18,7 +18,7 @@ FLOW:  typed line → send_input() → input_override(text) if a program runs
 import os
 
 from PySide6.QtCore import QProcess, Signal
-from PySide6.QtGui import QColor, QFont, QFontDatabase, QTextCursor
+from PySide6.QtGui import QColor, QFontDatabase, QTextCursor
 from PySide6.QtWidgets import QLineEdit, QTextEdit, QVBoxLayout, QWidget
 
 from medha import platform_info as P

@@ -10,10 +10,7 @@ Features:
 import os
 import re
 from typing import TYPE_CHECKING
-from PySide6.QtWidgets import (
-    QPlainTextEdit, QWidget, QTextEdit, QVBoxLayout, QListWidget, QListWidgetItem,
-    QLabel, QSplitter
-)
+from PySide6.QtWidgets import QPlainTextEdit, QWidget, QTextEdit, QVBoxLayout, QListWidget, QListWidgetItem, QLabel
 from PySide6.QtGui import QColor, QPainter, QTextFormat, QFont, QTextCursor
 from PySide6.QtCore import Qt, QRect, QSize, Signal
 from medha.highlighter import CodeHighlighter

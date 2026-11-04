@@ -6,18 +6,17 @@ No Qt dependencies — testable in isolation.
 All network calls have 10 second timeout.
 """
 from __future__ import annotations
-import json
 import hashlib
 import logging
 import os
 import tempfile
 from dataclasses import dataclass
-from typing import Optional, List, Tuple
-from urllib.parse import urlencode, urljoin
+from typing import Optional, List
+from urllib.parse import urlencode
 
 import requests
 
-from medha.extensions.models import ExtensionInfo, ExtensionDetail, ExtensionFileRef
+from medha.extensions.models import ExtensionInfo, ExtensionDetail
 
 logger = logging.getLogger(__name__)
 

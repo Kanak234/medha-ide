@@ -1,13 +1,9 @@
 import os
 import sys
 import psutil
-from PySide6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QTabWidget,
-    QDockWidget, QFileDialog, QMessageBox, QLabel, QStatusBar,
-    QMenuBar, QMenu, QSplitter, QGraphicsOpacityEffect
-)
+from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QTabWidget, QDockWidget, QFileDialog, QMessageBox, QLabel, QStatusBar, QGraphicsOpacityEffect
 from PySide6.QtGui import QAction, QIcon, QKeySequence, QTextCursor
-from PySide6.QtCore import Qt, QSize, QPropertyAnimation
+from PySide6.QtCore import Qt, QPropertyAnimation
 
 
 def get_app_icon_path() -> str:
@@ -1031,7 +1027,6 @@ class MedhaMainWindow(QMainWindow):
         # Kanak's KP orbit logo (docs/assets/logo-mark.svg) is the watermark of every project
         logo = os.path.join(str(platform_info.app_root()), "docs", "assets", "logo-mark.svg")
         if os.path.exists(logo):
-            from PySide6.QtGui import QPixmap
             box.setIconPixmap(QIcon(logo).pixmap(96, 96))
         gcc = toolchains.find("gcc")
         box.setText(
@@ -1045,7 +1040,6 @@ class MedhaMainWindow(QMainWindow):
 
     def _on_theme_apply_requested(self, colors: dict):
         """Handle theme apply request from Extensions panel."""
-        from medha.extensions.contributions import map_vscode_theme_to_medha
         from medha.editor_widget import AdvancedCodeEditorWidget
 
         # Apply theme colors to all open editors
