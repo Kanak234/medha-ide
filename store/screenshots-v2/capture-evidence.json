@@ -1,0 +1,37 @@
+{
+  "size": [
+    1920,
+    1080
+  ],
+  "platform": "linux",
+  "scenes": [
+    {
+      "file": "01-welcome.png",
+      "evidence": "Actual Welcome page; no document opened."
+    },
+    {
+      "file": "02-editor-minimap.png",
+      "evidence": "Editable hello.c sample with syntax highlighting and minimap."
+    },
+    {
+      "file": "03-command-centre.png",
+      "evidence": "Real CommandPalette embedded for offscreen capture; commands are not mocked."
+    },
+    {
+      "file": "04-dsa-visualizer.png",
+      "evidence": "UniversalDSATracer parsed a real Python frame containing numbers=[8,3,5,1,9]."
+    },
+    {
+      "file": "05-debugger.png",
+      "evidence": "Real gcc -g build paused in GDB at hello.c:8; numbers[0] evaluates to 8."
+    },
+    {
+      "file": "06-turbo-c-screen.png",
+      "evidence": "Bundled shapes.c compiled and ran through ProcessRunner; screen is the real PRABHA framebuffer."
+    },
+    {
+      "file": "07-light-theme.png",
+      "evidence": "Same source document with the built-in Medh\u0101 Light theme."
+    }
+  ]
+}
