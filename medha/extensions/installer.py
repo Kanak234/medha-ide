@@ -316,6 +316,10 @@ def get_installed_extension(namespace: str, name: str, version: str) -> Optional
         manifest = parse_extension_manifest(ext_root)
         return InstalledExtension.from_dict(data, manifest)
     except Exception:
+        # WHY: a corrupt manifest (truncated download, hand-edited JSON)
+        # used to return None with no trace — "extension disappeared" was
+        # undebuggable. Log it; the None contract is unchanged.
+        logger.exception("loading installed extension %s.%s failed", namespace, name)
         return None
 
 

@@ -4,10 +4,12 @@ Decoupled central event bus managing application state, multi-language compiler 
 GDB debug sessions, DSA graph snapshots, and defensive process lifecycle cleanup.
 """
 
+import logging
 import os
 import sys
-import psutil
-from PySide6.QtCore import QObject, Signal, Qt
+from PySide6.QtCore import QObject, Signal
+
+logger = logging.getLogger(__name__)
 
 
 class AntiGravityOrchestrator(QObject):
@@ -57,6 +59,10 @@ class AntiGravityOrchestrator(QObject):
 
     def cleanup_all_processes(self):
         """Crash guardrail: Cleanly terminates and kills all background processes."""
+        # WHY: the old `except Exception: pass` hid why a process would not
+        # die — on exit that leaks a zombie compiler/debugger the student
+        # can see in Task Manager. Log it; the list is still cleared so
+        # shutdown never hangs.
         for proc in self.active_processes:
             try:
                 if proc and proc.state() != 0: # NotRunning = 0
@@ -64,7 +70,7 @@ class AntiGravityOrchestrator(QObject):
                     if not proc.waitForFinished(300):
                         proc.kill()
             except Exception:
-                pass
+                logger.exception("cleaning up a background process failed")
         self.active_processes.clear()
 
     def _global_exception_handler(self, exctype, value, traceback_obj):
