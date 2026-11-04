@@ -19,7 +19,7 @@ def run():
         try:
             assert window.isVisible(), "Main window is not visible"
             assert window.tab_widget.count() > 0, "Welcome editor did not open"
-            assert Path(window.workspace_path, "main.c").is_file(), "Scratchpad missing"
+            assert window.tab_widget.tabText(0) == "Welcome", "Welcome missing"
             assert window.grab().save(str(result.with_suffix(".png"))), "Screenshot failed"
             result.write_text(json.dumps({"status": "PASS", "workspace": window.workspace_path,
                                           "title": window.windowTitle()}), encoding="utf-8")

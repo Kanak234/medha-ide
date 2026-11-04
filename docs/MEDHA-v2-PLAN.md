@@ -23,6 +23,7 @@ Release rule: fix and push all month, publish to the Store **once** at the end (
 | B6 | Low | Test suite fails offline (real network call). | `tests/test_extensions_registry.py` | `@pytest.mark.network`, skipped unless `MEDHA_NETWORK_TESTS=1`. |
 | B7 | Low | 16 unused variables (pyflakes). | dsa_engine, panel.py, renderers | Remove. CI runs `pyflakes medha` and must be clean. |
 | B8 | Medium | Closing a window with active disassembly can call a deleted QTextEdit. | `app.py` closeEvent | Stop child QProcesses before widget teardown. |
+| B9 | High | Closing an edited tab discarded unsaved work without confirmation. | `app.py` close_tab/closeEvent | Save/Discard/Cancel guard, including cancelled Save As. |
 More bugs come from Track B (section 3) — append them to this table with the same columns.
 
 ## 2. Track A — New UI like VS Code / Antigravity (ChatGPT)

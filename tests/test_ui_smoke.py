@@ -20,6 +20,10 @@ def window(tmp_path, monkeypatch):
     win.show()
     QTest.qWait(150)
     yield win
+    for index in range(win.tab_widget.count()):
+        widget = win.tab_widget.widget(index)
+        if hasattr(widget, "is_modified"):
+            widget.is_modified = False
     win.close()
     win.deleteLater()
     QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
@@ -123,3 +127,27 @@ def test_themes_apply_to_existing_and_new_editors(window):
         assert editor.minimap.width() == 80
         window.create_untitled_tab()
         assert window.get_current_editor().theme_tokens['bg'] == colors['bg']
+
+
+def test_welcome_does_not_create_files(window, tmp_path):
+    from medha.welcome import WelcomePage
+    assert isinstance(window.tab_widget.currentWidget(), WelcomePage)
+    assert not (tmp_path / 'main.c').exists()
+    window.create_untitled_tab()
+    window.close_tab(window.tab_widget.currentIndex())
+    assert isinstance(window.tab_widget.currentWidget(), WelcomePage)
+
+
+def test_cancel_keeps_unsaved_tab(window, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+    window.create_untitled_tab()
+    editor = window.get_current_editor()
+    editor.insertPlainText('unsaved')
+    monkeypatch.setattr(QMessageBox, 'question', lambda *args: QMessageBox.StandardButton.Cancel)
+    window.close_tab(window.tab_widget.currentIndex())
+    assert window.tab_widget.indexOf(editor) >= 0
+    window.close()
+    assert window.isVisible()
+    monkeypatch.setattr(QMessageBox, 'question', lambda *args: QMessageBox.StandardButton.Discard)
+    window.close_tab(window.tab_widget.indexOf(editor))
+    assert window.tab_widget.indexOf(editor) == -1

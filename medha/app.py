@@ -287,12 +287,28 @@ class MedhaMainWindow(QMainWindow):
         self.create_status_bar()
         self.apply_dark_theme()
 
-        # Open initial welcome scratchpad file
-        welcome_c_path = os.path.join(self.workspace_path, "main.c")
-        if not os.path.exists(welcome_c_path):
-            with open(welcome_c_path, 'w', encoding='utf-8') as f:
-                f.write("// MEDHĀ IDE — Native C Scratchpad\n#include <stdio.h>\n#include <stdlib.h>\n\nint main() {\n    int a = 42;\n    int *ptr = (int *)malloc(sizeof(int) * 10);\n    printf(\"Hello from Native MEDHĀ IDE!\\n\");\n    free(ptr);\n    return 0;\n}\n")
-        self.open_file_path(welcome_c_path)
+        self.show_welcome()
+
+    def show_welcome(self):
+        from medha.welcome import WelcomePage
+        for index in range(self.tab_widget.count()):
+            if isinstance(self.tab_widget.widget(index), WelcomePage):
+                self.tab_widget.setCurrentIndex(index)
+                return
+        page = WelcomePage(self)
+        index = self.tab_widget.addTab(page, 'Welcome')
+        self.install_tab_close(page)
+        self.tab_widget.setCurrentIndex(index)
+
+    def show_turbo_examples(self):
+        menu = QMenu(self)
+        root = os.path.join(str(platform_info.app_root()), 'examples', 'turboc')
+        if os.path.isdir(root):
+            for name in sorted(os.listdir(root)):
+                if os.path.isfile(os.path.join(root, name)):
+                    action = menu.addAction(name.replace('&', '&&'))
+                    action.triggered.connect(lambda _=False, p=os.path.join(root, name): self.open_lab_program(p))
+        menu.exec(self.mapToGlobal(self.rect().center()))
 
     def setup_dock_fade_in(self, dock):
         def on_vis(visible):
@@ -568,6 +584,7 @@ class MedhaMainWindow(QMainWindow):
             return action
 
         add(selection, 'Select All', 'Ctrl+A', lambda: self.get_current_editor() and self.get_current_editor().selectAll())
+        add(menus['Help'], 'Welcome', None, self.show_welcome)
         add(menus['File'], 'Quick Open…', 'Ctrl+P', self.show_quick_open)
         add(go, 'Go to Line…', 'Ctrl+G', self.go_to_line)
         add(terminal, 'Focus Terminal', 'Ctrl+`', self.focus_terminal)
@@ -625,11 +642,32 @@ class MedhaMainWindow(QMainWindow):
         status.addPermanentWidget(self.lbl_cursor_pos)
         status.addPermanentWidget(self.lbl_sys_info)
 
+    def confirm_close(self, widget):
+        if not isinstance(widget, AdvancedCodeEditorWidget) or not widget.is_modified:
+            return True
+        name = os.path.basename(widget.file_path) if widget.file_path else 'Untitled'
+        choice = QMessageBox.question(self, 'Unsaved changes', f'Save changes to {name}?',
+                                      QMessageBox.StandardButton.Save | QMessageBox.StandardButton.Discard |
+                                      QMessageBox.StandardButton.Cancel, QMessageBox.StandardButton.Save)
+        if choice == QMessageBox.StandardButton.Cancel:
+            return False
+        if choice == QMessageBox.StandardButton.Save:
+            self.tab_widget.setCurrentWidget(widget)
+            self.action_save_file()
+            return not widget.is_modified
+        return True
+        # Cancelled Save As must keep the document open just like Cancel does.
+
     def close_tab(self, index):
-        if index >= 0 and self.tab_widget.count() > 1:
-            self.tab_widget.removeTab(index)
-        else:
-            self.create_untitled_tab()
+        if index < 0:
+            return
+        widget = self.tab_widget.widget(index)
+        if not self.confirm_close(widget):
+            return
+        self.tab_widget.removeTab(index)
+        widget.deleteLater()
+        if self.tab_widget.count() == 0:
+            self.show_welcome()
 
     def on_tab_changed(self, index):
         editor = self.get_current_editor()
@@ -739,6 +777,8 @@ class MedhaMainWindow(QMainWindow):
             idx = self.tab_widget.addTab(editor, filename.replace("&", "&&"))
             self.install_tab_close(editor)
             self.tab_widget.setCurrentIndex(idx)
+            recent = [path] + [old for old in settings.get('recent_files', []) if old != path]
+            settings.set('recent_files', recent[:20])
             self.lbl_status.setText(f"Opened file: {path}")
             self.update_cursor_status()
 
@@ -1108,6 +1148,10 @@ class MedhaMainWindow(QMainWindow):
         ShortcutsDialog(collect_actions(self.menuBar()), self).exec()
 
     def closeEvent(self, event):
+        for index in range(self.tab_widget.count()):
+            if not self.confirm_close(self.tab_widget.widget(index)):
+                event.ignore()
+                return
         self.workbench.save()
         # Stop child processes while their receiving widgets still exist. Otherwise
         # a late disassembly callback can access a deleted QTextEdit during teardown.
