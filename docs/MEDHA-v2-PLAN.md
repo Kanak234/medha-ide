@@ -60,3 +60,19 @@ Manual checklist (both OSes): new C file → build → run → program reads `sc
 1. Version 2.0.0 everywhere (`packaging/*.metainfo.xml`, Windows package manifest, `store/listing.md`).
 2. Build the Windows package with the existing script in `packaging/windows`, test on Windows (install, launch, uninstall).
 3. Partner Center: new submission → Packages (upload) → Store listings (What's new + new screenshots from `docs/screenshots/v2/`) → Submit. Snap: build + `snapcraft upload --release=candidate`, promote to stable after one day.
+
+## 5. After v2 — v3 "Polyglot": many languages in one IDE (owner idea, 2026-11-05)
+Owner's wish: MEDHĀ alone should cover what the JetBrains family covers (IntelliJ, PyCharm, CLion, WebStorm, GoLand, Rider, DataGrip…).
+Honest scope: JetBrains' code and plugins are proprietary — nothing of theirs can be copied or bundled. The open way to get there
+is the same one VS Code uses: **language servers (LSP) + debug adapters (DAP)**. MEDHĀ already has `medha/lsp.py`.
+Start only after v2.0 is live and bug-free. One language per release, each one fully working (completion, go-to-definition,
+diagnostics, rename, format, run, debug) before the next:
+| Step | Language (JetBrains equivalent) | Language server | Debugger |
+|---|---|---|---|
+| 3.1 | C/C++ (CLion) — make the current support complete | clangd | gdb/lldb via DAP |
+| 3.2 | Python (PyCharm) | pyright / python-lsp-server | debugpy |
+| 3.3 | Java (IntelliJ) | Eclipse JDT LS | java-debug |
+| 3.4 | JavaScript/TypeScript (WebStorm) | typescript-language-server | js-debug |
+| 3.5 | Go (GoLand), Rust (RustRover) | gopls, rust-analyzer | delve, codelldb |
+| 3.6 | SQL (DataGrip) | sqls + a simple DB browser (SQLite first) | — |
+Each server is downloaded on first use (not bundled) to keep the Store package small; everything still works offline after that.
