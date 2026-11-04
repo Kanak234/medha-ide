@@ -151,3 +151,56 @@ def test_cancel_keeps_unsaved_tab(window, monkeypatch):
     monkeypatch.setattr(QMessageBox, 'question', lambda *args: QMessageBox.StandardButton.Discard)
     window.close_tab(window.tab_widget.indexOf(editor))
     assert window.tab_widget.indexOf(editor) == -1
+
+
+def test_status_uses_document_and_build_data(window, tmp_path):
+    from types import SimpleNamespace
+    source = tmp_path / 'sample.py'
+    source.write_text('print(1)\nprint(2)\n')
+    window.open_file_path(str(source))
+    window.navigate_to_line(2)
+    assert 'Ln 2' in window.lbl_cursor_pos.text()
+    assert 'PYTHON' in window.lbl_cursor_pos.text()
+    assert 'UTF-8' in window.lbl_cursor_pos.text()
+    assert 'sample.py' in window.windowTitle()
+    assert window.lbl_sys_info.isHidden()
+    window.status_controller.set_diagnostics([SimpleNamespace(severity='error'), SimpleNamespace(severity='warning')])
+    assert window.status_controller.diagnostics.text() == '1 errors · 1 warnings'
+    window.status_controller.monitor.setChecked(True)
+    window.status_controller.refresh()
+    assert '%' in window.lbl_sys_info.text()
+
+
+def test_every_menu_action_from_welcome(window, monkeypatch):
+    """Exercise UI slots with cancelled dialogs and isolated external build calls."""
+    import sys
+    from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox, QInputDialog, QMenu
+    from medha.command_palette import collect_actions
+    from medha.build import BuildSystem
+    errors = []
+    monkeypatch.setattr(sys, 'excepthook', lambda *error: errors.append(error))
+    monkeypatch.setattr(QDialog, 'exec', lambda self: QDialog.DialogCode.Rejected)
+    monkeypatch.setattr(QMessageBox, 'exec', lambda self: QMessageBox.StandardButton.Cancel)
+    monkeypatch.setattr(QMenu, 'exec', lambda *args: None)
+    monkeypatch.setattr(QFileDialog, 'getOpenFileName', lambda *a, **k: ('', ''))
+    monkeypatch.setattr(QFileDialog, 'getSaveFileName', lambda *a, **k: ('', ''))
+    monkeypatch.setattr(QFileDialog, 'getExistingDirectory', lambda *a, **k: '')
+    monkeypatch.setattr(QInputDialog, 'getInt', lambda *a, **k: (1, False))
+    monkeypatch.setattr(BuildSystem, 'configure', lambda self: (0, 'Smoke configuration'))
+    monkeypatch.setattr(BuildSystem, 'build', lambda self: (0, 'Smoke build', None))
+    monkeypatch.setattr(window, 'open_lab_program', lambda path: None)
+    # Each action starts in the legitimate no-active-document Welcome state.
+    # Editing/build behavior with a real document is covered in the focused tests.
+    actions = [action for _, action in collect_actions(window.menuBar())]
+    exit_action = next(a for a in actions if a.text().replace('&', '') == 'Exit')
+    for action in actions:
+        if action == exit_action:
+            continue
+        window.show_welcome()
+        action.trigger()
+        QApplication.processEvents()
+        assert not errors, (action.text(), errors)
+        assert window.isVisible(), action.text()
+    exit_action.trigger()
+    assert not errors
+    assert not window.isVisible()

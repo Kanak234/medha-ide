@@ -1,7 +1,6 @@
 import os
 import sys
-import psutil
-from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QTabWidget, QFileDialog, QMessageBox, QLabel, QStatusBar, QGraphicsOpacityEffect
+from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QTabWidget, QFileDialog, QMessageBox, QGraphicsOpacityEffect
 from PySide6.QtGui import QAction, QIcon, QKeySequence, QTextCursor
 from PySide6.QtCore import Qt, QPropertyAnimation
 
@@ -625,22 +624,8 @@ class MedhaMainWindow(QMainWindow):
         self.lbl_status.setText(f"Active Build Target: {target}")
 
     def create_status_bar(self):
-        status = QStatusBar()
-        status.setStyleSheet("background-color: #2b2d30; color: #bcbec4; border-top: 1px solid #393b40;")
-        self.setStatusBar(status)
-
-        cores = os.cpu_count() or "Unavailable"
-        ram_gb = round(psutil.virtual_memory().total / (1024 ** 3), 1)
-
-        self.lbl_status = QLabel(f"Ready [{self.active_build_config}]")
-        self.lbl_cursor_pos = QLabel("Ln 1, Col 1 | C")
-        self.lbl_cursor_pos.setStyleSheet("color: #a1a3ab; margin-right: 15px;")
-        self.lbl_sys_info = QLabel(f" CPU: {cores} Cores | RAM: {ram_gb} GB (Live OS) ")
-        self.lbl_sys_info.setStyleSheet("color: #58a6ff; font-weight: bold;")
-
-        status.addWidget(self.lbl_status, 1)
-        status.addPermanentWidget(self.lbl_cursor_pos)
-        status.addPermanentWidget(self.lbl_sys_info)
+        from medha.status import StatusController
+        self.status_controller = StatusController(self)
 
     def confirm_close(self, widget):
         if not isinstance(widget, AdvancedCodeEditorWidget) or not widget.is_modified:
@@ -670,6 +655,7 @@ class MedhaMainWindow(QMainWindow):
             self.show_welcome()
 
     def on_tab_changed(self, index):
+        self.update_cursor_status()
         editor = self.get_current_editor()
         if editor and hasattr(editor, 'get_symbol_outline'):
             symbols = editor.get_symbol_outline()
@@ -687,13 +673,8 @@ class MedhaMainWindow(QMainWindow):
                 break
 
     def update_cursor_status(self):
-        editor = self.get_current_editor()
-        if editor:
-            cursor = editor.textCursor()
-            line = cursor.blockNumber() + 1
-            col = cursor.columnNumber() + 1
-            lang = getattr(editor, 'lang', 'cpp').upper()
-            self.lbl_cursor_pos.setText(f"Ln {line}, Col {col} | {lang}")
+        if hasattr(self, 'status_controller'):
+            self.status_controller.document_changed()
 
     def apply_dark_theme(self):
         self.apply_theme(self.workbench.prefs.value('theme', 'dark'))
@@ -768,6 +749,7 @@ class MedhaMainWindow(QMainWindow):
 
             filename = os.path.basename(path)
             editor = AdvancedCodeEditorWidget(file_path=path, parent=self)
+            editor.encoding_label = 'UTF-8 (replacement)' if '\ufffd' in content else 'UTF-8'
             editor.setPlainText(content)
             editor.document().setModified(False)
             editor.is_modified = False
@@ -807,6 +789,8 @@ class MedhaMainWindow(QMainWindow):
             self.workspace_path = folder
             self.explorer.set_workspace(folder)
             self.terminal.set_working_directory(folder)
+            self.workspace_ctrl = HybridWorkspaceController(folder)
+            self.status_controller.refresh()
             self.lbl_status.setText(f"Opened workspace: {folder}")
 
     def action_save_file(self):
@@ -1030,6 +1014,7 @@ class MedhaMainWindow(QMainWindow):
             self.turbo_panel.on_finished(exit_code)
             self._turbo_active = False
         self.problems.set_diagnostics(diagnostics)
+        self.status_controller.set_diagnostics(diagnostics)
         if diagnostics:
             self.bottom_tabs.setCurrentWidget(self.problems)
             self.lbl_status.setText(f"Build Finished with {len(diagnostics)} diagnostic error(s).")
