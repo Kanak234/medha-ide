@@ -445,6 +445,10 @@ class TestRegistryRealCall:
     """One real call against open-vsx.org (network required)."""
 
     @pytest.mark.network
+    @pytest.mark.skipif(
+        not os.environ.get("MEDHA_NETWORK_TESTS"),
+        reason="Set MEDHA_NETWORK_TESTS=1 to run real network tests"
+    )
     def test_real_search_dracula(self):
         """Real search for 'dracula' against open-vsx.org."""
         client = OpenVSXRegistryClient(timeout=15)
