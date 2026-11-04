@@ -161,8 +161,12 @@ class ProcessRunner(QObject):
 
     def parse_python_traceback(self, text):
         """Last frame inside the user's own files + the exception line → one diagnostic."""
+        # Keep only frames from the user's own folder. Both sides go through
+        # abspath+normcase, so Windows drive letters, "\\" vs "/" and letter case
+        # can't make a user frame look foreign (was B12: wrong line on Windows).
+        mine = os.path.normcase(os.path.dirname(os.path.abspath(self.active_file)))
         frames = [(f, int(l)) for f, l in PY_FRAME_RE.findall(text)
-                  if not f.startswith("<") and os.path.abspath(f).startswith(os.path.dirname(self.active_file))]
+                  if not f.startswith("<") and os.path.normcase(os.path.abspath(f)).startswith(mine)]
         errs = PY_ERROR_RE.findall(text)
         if not errs:
             return

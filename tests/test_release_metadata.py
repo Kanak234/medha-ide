@@ -14,15 +14,15 @@ def test_package_versions_agree():
     assert identity.attrib['Version'] == __version__ + '.0'
     appstream = ET.parse(ROOT / 'packaging/io.github.Kanak234.Medha.metainfo.xml')
     assert appstream.find('releases/release').attrib['version'] == __version__
-    assert f'**Prepared version:** {__version__}' in (ROOT / 'store/listing.md').read_text()
-    snap = (ROOT / 'snap/snapcraft.yaml').read_text()
+    assert f'**Prepared version:** {__version__}' in (ROOT / 'store/listing.md').read_text(encoding='utf-8')
+    snap = (ROOT / 'snap/snapcraft.yaml').read_text(encoding='utf-8')
     assert 'adopt-info: medha-app' in snap
     assert 'craftctl set version="$VERSION"' in snap
     # Snap derives its version from the same app constant instead of a second literal.
 
 
 def test_partner_center_copy_is_short_and_does_not_claim_pending_terminal():
-    listing = (ROOT / 'store/listing.md').read_text()
+    listing = (ROOT / 'store/listing.md').read_text(encoding='utf-8')
     copy = listing.split('<!-- WHATS_NEW_START -->')[1].split('<!-- WHATS_NEW_END -->')[0].strip()
     assert 0 < len(copy) < 1500
     assert all(line.startswith('- ') for line in copy.splitlines())

@@ -11,6 +11,7 @@ Tests cover:
 - Clean termination
 """
 
+import os
 import json
 import socket
 import time
@@ -318,7 +319,7 @@ class TestDebugSessionDebugpy:
             session.send_dap_request.assert_called_once()
             args = session.send_dap_request.call_args[0]
             assert args[0] == "setBreakpoints"
-            assert args[1]["source"]["path"] == "/tmp/test.py"
+            assert args[1]["source"]["path"] == os.path.abspath("/tmp/test.py")
             assert args[1]["breakpoints"][0]["line"] == 42
 
     def test_set_breakpoint_debugpy_fails_on_unverified(self):
@@ -416,7 +417,7 @@ class TestDebugSessionCommon:
     def test_init_sets_attributes(self):
         """DebugSession.__init__ sets target path and kind."""
         session = DebugSession("/tmp/test", kind="gdb")
-        assert session.target == "/tmp/test"
+        assert session.target == os.path.abspath("/tmp/test")
         assert session.kind == "gdb"
         assert session.proc is None
         assert session.sock is None

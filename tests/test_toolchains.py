@@ -182,10 +182,12 @@ class TestFindPriority:
         # Mock EXE suffix for the platform (imported at module level in toolchains)
         with patch("medha.toolchains.EXE", ".exe"):
             with patch("os.path.isfile") as mock_isfile:
-                mock_isfile.side_effect = lambda p: p == "/app/toolchains/mingw64/bin/gcc.exe"
+                # Path() gives native separators, so build the expectation the same way (Windows uses "\\").
+                expected = str(Path("/app/toolchains") / "mingw64" / "bin" / "gcc.exe")
+                mock_isfile.side_effect = lambda p: str(p) == expected
                 with patch("shutil.which", return_value="/usr/bin/gcc"):
                     tool = find("gcc")
-                    assert tool.path == "/app/toolchains/mingw64/bin/gcc.exe"
+                    assert str(tool.path) == expected
                     assert tool.source == "bundled"
 
     @patch("medha.toolchains.settings.get", return_value={})

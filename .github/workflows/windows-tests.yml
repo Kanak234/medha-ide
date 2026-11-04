@@ -32,4 +32,4 @@ jobs:
       - name: pyflakes
         run: python -m pyflakes medha
       - name: pytest (offline)
-        run: python -m pytest -q
+        run: python -m pytest -q -rs

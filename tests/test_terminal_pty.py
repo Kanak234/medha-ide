@@ -218,6 +218,7 @@ class TestQProcessFallback:
 # ---------------------------------------------------------------------------
 
 class TestCreatePtyBackend:
+    @pytest.mark.skipif(sys.platform == "win32", reason="the pty module needs termios (POSIX only)")
     @patch("medha.terminal.P")
     def test_unix_chooses_unix_pty(self, mock_P, qapp):
         """On Linux/macOS, factory returns _UnixPtyProcess."""

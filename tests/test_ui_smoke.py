@@ -94,7 +94,7 @@ def test_menu_order_and_existing_actions_preserved(window):
     from medha.command_palette import collect_actions
     menus = [a.text().replace('&', '') for a in window.menuBar().actions()]
     assert menus == ['File', 'Edit', 'Selection', 'View', 'Go', 'Run', 'Terminal', 'Help']
-    original = json.loads((Path(__file__).parent / 'fixtures/v1_actions.json').read_text())
+    original = json.loads((Path(__file__).parent / 'fixtures/v1_actions.json').read_text(encoding='utf-8'))
     before = Counter(text.replace('&', '') for text in original)
     after = Counter(action.text().replace('&', '') for _, action in collect_actions(window.menuBar()))
     assert not (before - after)
