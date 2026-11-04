@@ -78,3 +78,13 @@ diagnostics, rename, format, run, debug) before the next:
 | 3.5 | Go (GoLand), Rust (RustRover) | gopls, rust-analyzer | delve, codelldb |
 | 3.6 | SQL (DataGrip) | sqls + a simple DB browser (SQLite first) | — |
 Each server is downloaded on first use (not bundled) to keep the Store package small; everything still works offline after that.
+
+## Track A implementation evidence (2026-11-05)
+
+Implemented on `v2-ui`: Track A steps 1–8, B1 and B2. Required offline/lint
+prerequisites B4/B6/B7 are included as separate commits. B8/B9 were discovered
+while exercising the UI and are fixed in this branch. B3/B5 remain Track B work.
+See [verification details](V2-UI-VERIFICATION.md) and
+[before/after screenshots](screenshots/v2/README.md). Linux checks: 106 passed,
+1 explicit network skip; pyflakes clean; 20 UI smoke tests passed. Windows/manual
+release acceptance remains pending.

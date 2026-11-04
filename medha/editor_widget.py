@@ -119,15 +119,7 @@ class AdvancedCodeEditorWidget(QPlainTextEdit):
         self.setFont(font)
         self.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
 
-        self.setStyleSheet("""
-            QPlainTextEdit {
-                background-color: #0d1117;
-                color: #c9d1d9;
-                border: none;
-                selection-background-color: #1f6feb;
-                selection-color: #ffffff;
-            }
-        """)
+        # Appearance is inherited from the shared workbench QSS.
 
         self.blockCountChanged.connect(self.update_margin_area_width)
         self.updateRequest.connect(self.update_margin_area)
@@ -457,19 +449,11 @@ class CodeOutlineWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
 
         header = QLabel(" SYMBOL OUTLINE")
-        header.setStyleSheet("background-color: #161b22; color: #8b949e; font-weight: bold; font-size: 11px; padding: 4px;")
+        # Appearance is inherited from the shared workbench QSS.
         layout.addWidget(header)
 
         self.list_widget = QListWidget()
-        self.list_widget.setStyleSheet("""
-            QListWidget {
-                background-color: #0d1117;
-                color: #c9d1d9;
-                border: none;
-            }
-            QListWidget::item:hover { background-color: #161b22; }
-            QListWidget::item:selected { background-color: #1f6feb; color: white; }
-        """)
+        # Appearance is inherited from the shared workbench QSS.
         self.list_widget.itemClicked.connect(self.on_item_clicked)
         layout.addWidget(self.list_widget)
 

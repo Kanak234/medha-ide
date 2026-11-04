@@ -4,12 +4,37 @@ WHY: docking every tool on the right imposes all their minimum sizes on the
 editor. Scrollable sidebar pages and one bottom panel keep those tools reachable
 without stealing the editing surface. Legacy dock actions route to their new home.
 """
-from PySide6.QtCore import Qt, QSettings, QTimer
+from PySide6.QtCore import Qt, QSettings, QTimer, QSize
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QDockWidget, QSplitter, QStackedWidget,
     QScrollArea, QToolButton, QStyle, QComboBox, QSizePolicy, QTextEdit, QLineEdit,
 )
+
+
+def activity_icon(title, color):
+    from PySide6.QtSvg import QSvgRenderer
+    from PySide6.QtGui import QPixmap, QPainter, QIcon
+    paths = {
+        'Explorer': '<path d="M8 3h11v15H8zM5 7H3v14h12v-2"/>',
+        'Search': '<circle cx="10" cy="10" r="6"/><path d="m15 15 6 6"/>',
+        'Run and Debug': '<path d="m6 3 15 9-15 9z"/>',
+        'Git': '<circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M6 7v10m12-10v3c0 4-12 1-12 7"/>',
+        'Extensions': '<path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/>',
+        'DSA': '<circle cx="12" cy="4" r="2"/><circle cx="4" cy="19" r="2"/><circle cx="20" cy="19" r="2"/><path d="m11 6-6 11m8-11 6 11"/>',
+        'AI': '<path d="m12 2 3 7 7 3-7 3-3 7-3-7-7-3 7-3z"/>',
+        'Outline': '<path d="M8 5h13M8 12h10M8 19h13M3 5h1m-1 7h1m-1 7h1"/>',
+    }
+    svg = ('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">'
+           f'<g fill="none" stroke="{color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">'
+           + paths.get(title, paths['Explorer']) + '</g></svg>')
+    image = QPixmap(24, 24)
+    image.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(image)
+    QSvgRenderer(svg.encode()).render(painter)
+    painter.end()
+    return QIcon(image)
+    # Neutral line icons remain legible in both themes, unlike platform-colored icons.
 
 
 class ToolDock(QDockWidget):
@@ -173,6 +198,7 @@ class Workbench(QWidget):
         self.selector.addItem(title)
         button = QToolButton()
         button.setFixedSize(48, 48)
+        button.setIconSize(QSize(24, 24))
         button.setIcon(self.style().standardIcon(icon))
         button.setToolTip(title)
         button.setAccessibleName(title)
@@ -225,11 +251,15 @@ class Workbench(QWidget):
         self.restore_sizes()
 
     def remember_sidebar(self, position, index):
-        self.sidebar_width = self.horizontal.sizes()[0]
+        width = self.horizontal.sizes()[0]
+        if width > 0:
+            self.sidebar_width = width
         self.restore_sizes()
 
     def remember_panel(self, position, index):
-        self.panel_height = self.vertical.sizes()[1]
+        height = self.vertical.sizes()[1]
+        if height > 0:
+            self.panel_height = height
 
     def save(self):
         self.prefs.setValue('sidebar_width', self.sidebar_width)

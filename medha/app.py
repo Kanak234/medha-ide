@@ -1,8 +1,8 @@
 import os
 import sys
-from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QTabWidget, QFileDialog, QMessageBox, QGraphicsOpacityEffect
+from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QTabWidget, QFileDialog, QMessageBox
 from PySide6.QtGui import QAction, QIcon, QKeySequence, QTextCursor
-from PySide6.QtCore import Qt, QPropertyAnimation
+from PySide6.QtCore import Qt
 
 
 def get_app_icon_path() -> str:
@@ -128,23 +128,7 @@ class MedhaMainWindow(QMainWindow):
         self.tab_widget.setTabsClosable(True)
         self.tab_widget.tabCloseRequested.connect(self.close_tab)
         self.tab_widget.currentChanged.connect(self.on_tab_changed)
-        self.tab_widget.setStyleSheet("""
-            QTabWidget::pane {
-                border: none;
-                background-color: #0d1117;
-            }
-            QTabBar::tab {
-                background-color: #161b22;
-                color: #8b949e;
-                padding: 6px 14px;
-                border-right: 1px solid #0d1117;
-            }
-            QTabBar::tab:selected {
-                background-color: #0d1117;
-                color: #58a6ff;
-                border-top: 2px solid #1f6feb;
-            }
-        """)
+        # Appearance is inherited from the shared workbench QSS.
 
         self.setCentralWidget(self.tab_widget)
 
@@ -177,21 +161,7 @@ class MedhaMainWindow(QMainWindow):
         self.security_panel = SecurityPanel()
         self.security_panel.finding_selected.connect(self.navigate_to_problem)
         self.bottom_tabs.addTab(self.security_panel, "Security")
-        self.bottom_tabs.setStyleSheet("""
-            QTabWidget::pane {
-                border: 1px solid #21262d;
-                background-color: #090d16;
-            }
-            QTabBar::tab {
-                background-color: #161b22;
-                color: #8b949e;
-                padding: 4px 12px;
-            }
-            QTabBar::tab:selected {
-                background-color: #0d1117;
-                color: #58a6ff;
-            }
-        """)
+        # Appearance is inherited from the shared workbench QSS.
 
         self.dock_bottom = ToolDock("Console && Safety Diagnostics", self)
         self.dock_bottom.setWidget(self.bottom_tabs)
@@ -292,6 +262,7 @@ class MedhaMainWindow(QMainWindow):
         from medha.welcome import WelcomePage
         for index in range(self.tab_widget.count()):
             if isinstance(self.tab_widget.widget(index), WelcomePage):
+                self.tab_widget.widget(index).refresh_recent()
                 self.tab_widget.setCurrentIndex(index)
                 return
         page = WelcomePage(self)
@@ -309,41 +280,9 @@ class MedhaMainWindow(QMainWindow):
                     action.triggered.connect(lambda _=False, p=os.path.join(root, name): self.open_lab_program(p))
         menu.exec(self.mapToGlobal(self.rect().center()))
 
-    def setup_dock_fade_in(self, dock):
-        def on_vis(visible):
-            if visible and dock.widget():
-                effect = QGraphicsOpacityEffect(dock.widget())
-                dock.widget().setGraphicsEffect(effect)
-                anim = QPropertyAnimation(effect, b"opacity", dock)
-                anim.setDuration(120)
-                anim.setStartValue(0.0)
-                anim.setEndValue(1.0)
-                anim.start()
-                dock._fade_anim = anim
-        dock.visibilityChanged.connect(on_vis)
-
     def create_menu_bar(self):
         menu_bar = self.menuBar()
-        menu_bar.setStyleSheet("""
-            QMenuBar {
-                background-color: #161b22;
-                color: #c9d1d9;
-                padding: 2px;
-            }
-            QMenuBar::item:selected {
-                background-color: #1f6feb;
-                color: #ffffff;
-            }
-            QMenu {
-                background-color: #161b22;
-                color: #c9d1d9;
-                border: 1px solid #30363d;
-            }
-            QMenu::item:selected {
-                background-color: #1f6feb;
-                color: #ffffff;
-            }
-        """)
+        # Appearance is inherited from the shared workbench QSS.
 
         # File Menu
         file_menu = menu_bar.addMenu("&File")
@@ -593,6 +532,10 @@ class MedhaMainWindow(QMainWindow):
         search_index = self.workbench.add_view('Search', self.search_view, QStyle.StandardPixmap.SP_FileDialogContentsView)
         self.git_view = GitView(self)
         git_index = self.workbench.add_view('Git', self.git_view, QStyle.StandardPixmap.SP_DirLinkIcon)
+        order = ['Explorer', 'Search', 'Run and Debug', 'Git', 'Extensions', 'DSA', 'AI', 'Outline']
+        for position, title in enumerate(order):
+            index = self.workbench.selector.findText(title)
+            self.workbench.activity_layout.insertWidget(position, self.workbench.buttons[index])
         add(menus['View'], 'Search Workspace', 'Ctrl+Shift+F', lambda: self.workbench.activate(search_index))
         add(menus['View'], 'Source Control', 'Ctrl+Shift+G', lambda: self.workbench.activate(git_index))
         add(menus['View'], 'Medhā Dark', None, lambda: self.apply_theme('dark'))
@@ -614,9 +557,15 @@ class MedhaMainWindow(QMainWindow):
             if accepted:
                 self.navigate_to_line(line)
 
+    def show_panel(self, widget):
+        self.bottom_tabs.show()
+        self.bottom_tabs.setCurrentWidget(widget)
+        self.workbench.restore_sizes()
+        # Build/debug/navigation handlers reveal their output even after Ctrl+J.
+
     def focus_terminal(self):
         self.dock_bottom.show()
-        self.bottom_tabs.setCurrentWidget(self.terminal)
+        self.show_panel(self.terminal)
         self.terminal.input_line.setFocus()
 
     def set_active_build_target(self, target):
@@ -699,6 +648,10 @@ class MedhaMainWindow(QMainWindow):
             if isinstance(editor, AdvancedCodeEditorWidget):
                 apply_editor(editor, self.theme_name)
             self.install_tab_close(editor)
+        from medha.workbench import activity_icon
+        from medha.theme import tokens
+        for index, button in self.workbench.buttons.items():
+            button.setIcon(activity_icon(self.workbench.selector.itemText(index), tokens(self.theme_name)['fg']))
         if hasattr(self, 'lbl_theme'):
             self.lbl_theme.setText('Medhā ' + self.theme_name.title())
 
@@ -722,6 +675,10 @@ class MedhaMainWindow(QMainWindow):
 
     def create_untitled_tab(self, title="untitled.c", content=""):
         editor = AdvancedCodeEditorWidget(file_path=None, parent=self)
+        editor.lang = editor.detect_language(title)
+        editor.highlighter.language = editor.lang
+        editor.highlighter.rules.clear()
+        editor.highlighter.setup_rules()
         editor.setPlainText(content)
         editor.document().setModified(False)
         editor.is_modified = False
@@ -824,6 +781,12 @@ class MedhaMainWindow(QMainWindow):
                 with open(path, 'w', encoding='utf-8') as f:
                     f.write(editor.toPlainText())
                 editor.file_path = path
+                editor.lang = editor.detect_language(path)
+                editor.highlighter.language = editor.lang
+                editor.highlighter.rules.clear()
+                editor.highlighter.setup_rules()
+                editor.highlighter.rehighlight()
+                self.update_cursor_status()
                 editor.document().setModified(False)
                 editor.is_modified = False
                 self.update_tab_title(editor)
@@ -844,14 +807,14 @@ class MedhaMainWindow(QMainWindow):
             QMessageBox.warning(self, "Run Error", "Please save scratchpad file to disk before compilation.")
             return
 
-        self.bottom_tabs.setCurrentWidget(self.terminal)
+        self.show_panel(self.terminal)
         self.lbl_status.setText(f"Scratchpad Running ({self.active_build_config}) {os.path.basename(editor.file_path)}...")
         self.runner.run_file(editor.file_path)
 
     def action_run_linter(self):
         editor = self.get_current_editor()
         if editor and editor.file_path:
-            self.bottom_tabs.setCurrentWidget(self.safety_panel)
+            self.show_panel(self.safety_panel)
             self.linter_engine.analyze_file(editor.file_path)
 
     def action_run_disassembly(self):
@@ -977,7 +940,7 @@ class MedhaMainWindow(QMainWindow):
         from medha.git_backend import GitBackend
         git = GitBackend(self.workspace_path)
         status_files = git.status()
-        self.bottom_tabs.setCurrentWidget(self.terminal)
+        self.show_panel(self.terminal)
         self.terminal.append_output(f"[Git Status] Modified files: {status_files}\n", color="#79c0ff")
 
     def action_git_commit(self):
@@ -994,14 +957,14 @@ class MedhaMainWindow(QMainWindow):
         from medha.build import BuildSystem
         bs = BuildSystem(self.workspace_path)
         code, out = bs.configure()
-        self.bottom_tabs.setCurrentWidget(self.terminal)
+        self.show_panel(self.terminal)
         self.terminal.append_output(f"[CMake Configure Exit {code}]\n{out}\n", color="#79c0ff")
 
     def action_build_project(self):
         from medha.build import BuildSystem
         bs = BuildSystem(self.workspace_path)
         code, out, artifact = bs.build()
-        self.bottom_tabs.setCurrentWidget(self.terminal)
+        self.show_panel(self.terminal)
         self.terminal.append_output(f"[Build Exit {code}] Artifact: {artifact}\n{out}\n", color="#79c0ff")
 
     def on_runner_output(self, text, stream_type):
@@ -1016,7 +979,7 @@ class MedhaMainWindow(QMainWindow):
         self.problems.set_diagnostics(diagnostics)
         self.status_controller.set_diagnostics(diagnostics)
         if diagnostics:
-            self.bottom_tabs.setCurrentWidget(self.problems)
+            self.show_panel(self.problems)
             self.lbl_status.setText(f"Build Finished with {len(diagnostics)} diagnostic error(s).")
         else:
             self.lbl_status.setText(f"Process Finished with exit code {exit_code}.")
@@ -1091,7 +1054,7 @@ class MedhaMainWindow(QMainWindow):
         self.action_save_file()
         findings = scan_file(editor.file_path, settings.get("explain_lang", "en"))
         self.security_panel.set_findings(findings, editor.file_path)
-        self.bottom_tabs.setCurrentWidget(self.security_panel)
+        self.show_panel(self.security_panel)
 
     def action_toolchains(self):
         from medha.toolchains_dialog import ToolchainsDialog

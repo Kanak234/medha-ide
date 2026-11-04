@@ -7,6 +7,7 @@ from medha import settings
 class WelcomePage(QWidget):
     def __init__(self, window):
         super().__init__()
+        self.window = window
         layout = QVBoxLayout(self)
         layout.setContentsMargins(64, 40, 64, 40)
         layout.setSpacing(6)
@@ -32,12 +33,25 @@ class WelcomePage(QWidget):
         link('Learn DSA visually', window.dock_dsa.show)
         layout.addSpacing(20)
         layout.addWidget(QLabel('RECENT'))
-        recent = [path for path in settings.get('recent_files', []) if Path(path).is_file()]
-        for path in recent[:6]:
-            link(Path(path).name + '  ·  ' + str(Path(path).parent), lambda _=False, p=path: window.open_file_path(p))
-        if not recent:
-            layout.addWidget(QLabel('Files you open will appear here.'))
+        recent_box = QWidget()
+        self.recent_layout = QVBoxLayout(recent_box)
+        self.recent_layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(recent_box)
+        self.refresh_recent()
         layout.addStretch()
         hint = QLabel('Ctrl+P  Open a file     ·     Ctrl+Shift+P  Find any command')
         hint.setWordWrap(True)
         layout.addWidget(hint)
+
+    def refresh_recent(self):
+        while self.recent_layout.count():
+            self.recent_layout.takeAt(0).widget().deleteLater()
+        recent = [path for path in settings.get('recent_files', []) if Path(path).is_file()]
+        for path in recent[:6]:
+            button = QPushButton(Path(path).name + '  ·  ' + str(Path(path).parent))
+            button.setObjectName('welcomeLink')
+            button.clicked.connect(lambda _=False, p=path: self.window.open_file_path(p))
+            self.recent_layout.addWidget(button)
+        if not recent:
+            self.recent_layout.addWidget(QLabel('Files you open will appear here.'))
+        # Refresh on re-entry so Recent reflects files opened during this session.

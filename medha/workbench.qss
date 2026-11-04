@@ -19,7 +19,7 @@ QPushButton:hover, QToolButton:hover { background: $selection; }
 #commandCentre { min-width: 250px; color: $muted; padding: 4px 18px; }
 QLineEdit, QComboBox { background: $field; border: 1px solid $border; padding: 6px; selection-background-color: $selection; }
 QLineEdit:focus { border: 1px solid $accent; }
-QPlainTextEdit, QTextEdit { background: $bg; color: $fg; border: none; selection-background-color: $selection; font-family: "JetBrains Mono", "Cascadia Code", "DejaVu Sans Mono"; }
+QPlainTextEdit, QTextEdit { font-size: 14px; background: $bg; color: $fg; border: none; selection-background-color: $selection; font-family: "JetBrains Mono", "Cascadia Code", "DejaVu Sans Mono"; }
 QTreeView, QListView, QTableView { background: $panel; border: none; selection-background-color: $selection; }
 QTreeView::item, QListView::item { padding: 4px; }
 QHeaderView::section { background: $panel; border: 0; padding: 6px; }
