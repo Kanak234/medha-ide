@@ -3,6 +3,7 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
+from medha import __version__ as VERSION
 
 ROOT = Path(__file__).resolve().parent
 RELEASE = ROOT / "release"
@@ -42,7 +43,7 @@ def main():
 
     # Step 2: Build Debian Package (.deb)
     print("[2/4] Constructing Debian Package (.deb)...")
-    deb_dir = BUILD_DIR / "deb" / "medha-ide_1.1.0_amd64"
+    deb_dir = BUILD_DIR / "deb" / f"medha-ide_{VERSION}_amd64"
     deb_bin = deb_dir / "usr" / "bin"
     deb_lib = deb_dir / "usr" / "lib" / "medha-ide"
     deb_apps = deb_dir / "usr" / "share" / "applications"
@@ -103,8 +104,8 @@ MimeType=text/x-csrc;text/x-c++src;text/x-python;text/x-chdr;text/x-c++hdr;text/
     # System tools (gcc, g++, gdb, git, cmake, make) are required at runtime for
     # the IDE's core functionality (compilation, debugging, Git, CMake).
     control = deb_control / "control"
-    control.write_text("""Package: medha-ide
-Version: 1.1.0
+    control.write_text(f"""Package: medha-ide
+Version: {VERSION}
 Architecture: amd64
 Maintainer: Kanak Prabhakar <kanakprabhakar72@gmail.com>
 Depends: gcc, g++, gdb, git, cmake, make, libc6 (>= 2.34), libstdc++6 (>= 12), libgcc-s1 (>= 12)
@@ -117,7 +118,7 @@ Description: MEDHĀ IDE — Standalone Native Desktop IDE Suite
 """)
 
     # Build .deb
-    deb_path = RELEASE / "medha-ide_1.1.0_amd64.deb"
+    deb_path = RELEASE / f"medha-ide_{VERSION}_amd64.deb"
     r = subprocess.run(["dpkg-deb", "--build", str(deb_dir), str(deb_path)], capture_output=True, text=True)
     if r.returncode == 0:
         print(f"Debian package created successfully: {deb_path} ({deb_path.stat().st_size} bytes)")
@@ -137,7 +138,7 @@ Description: MEDHĀ IDE — Standalone Native Desktop IDE Suite
 
     shutil.copy(desktop, appdir / "medha-ide.desktop")
 
-    appimage_path = RELEASE / "MEDHA_IDE-1.1.0-x86_64.AppImage"
+    appimage_path = RELEASE / f"MEDHA_IDE-{VERSION}-x86_64.AppImage"
     # Create self-extracting / executable AppImage wrapper
     tar_cmd = ["tar", "-czf", str(appimage_path), "-C", str(appdir), "."]
     subprocess.run(tar_cmd, check=True)

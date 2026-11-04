@@ -1124,7 +1124,7 @@ class MedhaMainWindow(QMainWindow):
         from medha import __version__
         from medha import toolchains
         box = QMessageBox(self)
-        box.setWindowTitle("About MEDHĀ IDE")
+        box.setWindowTitle(f"About MEDHĀ IDE {__version__}")
         # Kanak's KP orbit logo (docs/assets/logo-mark.svg) is the watermark of every project
         logo = os.path.join(str(platform_info.app_root()), "docs", "assets", "logo-mark.svg")
         if os.path.exists(logo):
