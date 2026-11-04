@@ -35,7 +35,7 @@ datas = [(os.path.join(ROOT, "medha", "workbench.qss"), "medha"),
 if os.path.isdir(os.path.join(ROOT, "toolchains")):
     datas.append((os.path.join(ROOT, "toolchains"), "toolchains"))
 a = Analysis([os.path.join(ROOT, "packaging", "windows", "medha_entry.py")], pathex=[ROOT], datas=datas,
-             hiddenimports=["medha.app", "PySide6.QtSvg"], excludes=["tkinter"])
+             hiddenimports=["medha.app", "PySide6.QtSvg", "winpty", "psutil"], excludes=["tkinter"])
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="MEDHA", console=False, version=version_info,
           icon=os.path.join(ROOT, "packaging", "windows", "medha.ico") if os.path.exists(os.path.join(ROOT, "packaging", "windows", "medha.ico")) else None)

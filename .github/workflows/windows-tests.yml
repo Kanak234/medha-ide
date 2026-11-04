@@ -1,0 +1,35 @@
+name: Windows tests
+
+# Test-only: runs the full suite on a real Windows machine (real ConPTY via
+# pywinpty, real cmd.exe). It builds nothing and publishes nothing — no release,
+# no MSIX upload. Safe to run on every push.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pytest-windows:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      QT_QPA_PLATFORM: offscreen
+      MEDHA_REAL_CONPTY_TEST: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies (includes pywinpty)
+        run: python -m pip install -r requirements.txt pytest pyflakes
+      - name: pywinpty importable as winpty
+        run: python -c "from winpty import PtyProcess; print('winpty OK')"
+      - name: pyflakes
+        run: python -m pyflakes medha
+      - name: pytest (offline)
+        run: python -m pytest -q

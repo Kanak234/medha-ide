@@ -110,84 +110,60 @@ class TestUnixPtyProcess:
 # Windows ConPTY backend tests (mocked, run everywhere)
 # ---------------------------------------------------------------------------
 
-class TestWindowsConPtyProcess:
-    def test_start_spawns_pty(self, qapp, monkeypatch):
-        """_WindowsConPtyProcess.start() creates a PtyProcess and polls for output."""
-        # Mock pywinpty in sys.modules BEFORE the class is used
-        mock_pywinpty = MagicMock()
-        monkeypatch.setitem(sys.modules, 'pywinpty', mock_pywinpty)
+def _fake_winpty(monkeypatch, reads):
+    """Install a fake 'winpty' module (the import name of the pywinpty package).
+    `reads` feeds PtyProcess.read(); the list should end with EOFError so the
+    background reader thread finishes like it does when cmd.exe exits."""
+    mod = MagicMock()
+    pty = MagicMock()
+    pty.isalive.return_value = True
+    pty.read.side_effect = reads
+    mod.PtyProcess.spawn.return_value = pty
+    monkeypatch.setitem(sys.modules, "winpty", mod)
+    return mod, pty
 
-        # Mock the PtyProcess
-        mock_pty = MagicMock()
-        mock_pty.isalive.return_value = True
-        # The timer polls immediately, so we need enough empty reads before the real output
-        mock_pty.read.side_effect = ["", "", "", "Microsoft Windows [Version 10.0.19045]\nC:\\Users\\test>"]
-        mock_pywinpty.PtyProcess.spawn.return_value = mock_pty
+
+class TestWindowsConPtyProcess:
+    def test_start_spawns_pty_and_streams_output(self, qapp, monkeypatch):
+        """start() spawns cmd.exe in ConPTY with (rows, cols) and streams output from the reader thread."""
+        mod, pty = _fake_winpty(monkeypatch, ["Microsoft Windows [Version 10.0.19045]\r\nC:\\>", EOFError()])
+        from PySide6.QtTest import QSignalSpy
 
         proc = _WindowsConPtyProcess(os.getcwd())
-        
-        # Create spy BEFORE starting to catch the startup message
-        from PySide6.QtTest import QSignalSpy
-        spy = QSignalSpy(proc.ready_read)
-        
+        out = QSignalSpy(proc.ready_read)
+        done = QSignalSpy(proc.finished)
         proc.start()
 
-        # Wait for startup message (emitted immediately in start())
-        assert spy.wait(1000), "Startup message not emitted"
-        # The first emission should be the startup message
-        assert spy.count() > 0
-        first_emission = spy.at(0)
-        assert "MEDHĀ Terminal".encode("utf-8") in first_emission[0]
+        # Real winpty API: spawn(argv, cwd=..., dimensions=(rows, cols)).
+        _, kwargs = mod.PtyProcess.spawn.call_args
+        assert kwargs["dimensions"] == (24, 80)
+        assert proc._shell_started is True
 
-        # The timer may have already fired during the wait above, so check if we already have the second emission
-        if spy.count() < 2:
-            # Wait for polled output (timer fires and reads from pty)
-            assert spy.wait(1000), "Polled output not emitted"
-        
-        assert spy.count() > 1
-        second_emission = spy.at(1)
-        output = second_emission[0].decode("utf-8", errors="replace")
-        assert "Windows" in output or "cmd" in output.lower()
-
+        deadline = time.time() + 3
+        while done.count() == 0 and time.time() < deadline:
+            qapp.processEvents()
+            time.sleep(0.01)
+        assert done.count() == 1, "reader thread never reported EOF"
+        text = b"".join(bytes(out.at(i)[0]) for i in range(out.count())).decode("utf-8")
+        assert "MEDHĀ Terminal" in text and "Microsoft Windows" in text
+        assert proc._shell_started is False  # shell gone → widget stops sending
         proc.shutdown()
-        mock_pty.terminate.assert_called()
 
     def test_write_sends_to_pty(self, qapp, monkeypatch):
-        """write() sends data to the ConPTY."""
-        mock_pywinpty = MagicMock()
-        monkeypatch.setitem(sys.modules, 'pywinpty', mock_pywinpty)
-
-        mock_pty = MagicMock()
-        mock_pty.isalive.return_value = True
-        mock_pty.read.return_value = ""
-        mock_pywinpty.PtyProcess.spawn.return_value = mock_pty
-
+        _, pty = _fake_winpty(monkeypatch, [EOFError()])
         proc = _WindowsConPtyProcess(os.getcwd())
         proc.start()
-        wait_for_signal(proc, "ready_read", timeout=1.0)
-
-        proc.write(b"dir\n")
-        mock_pty.write.assert_called_with("dir\n")
-
+        proc.write(b"dir\r\n")
+        pty.write.assert_called_with("dir\r\n")
         proc.shutdown()
 
-    def test_send_signal_ctrl_c(self, qapp, monkeypatch):
-        """send_signal(SIGINT) sends Ctrl+C keystroke to ConPTY."""
-        mock_pywinpty = MagicMock()
-        monkeypatch.setitem(sys.modules, 'pywinpty', mock_pywinpty)
-
-        mock_pty = MagicMock()
-        mock_pty.isalive.return_value = True
-        mock_pty.read.return_value = ""
-        mock_pywinpty.PtyProcess.spawn.return_value = mock_pty
-
+    def test_send_signal_ctrl_c_uses_sendintr(self, qapp, monkeypatch):
+        """Ctrl+C → winpty PtyProcess.sendintr() (the real method name)."""
+        _, pty = _fake_winpty(monkeypatch, [EOFError()])
         proc = _WindowsConPtyProcess(os.getcwd())
         proc.start()
-        wait_for_signal(proc, "ready_read", timeout=1.0)
-
         proc.send_signal(signal.SIGINT)
-        mock_pty.send_control.assert_called_with('c')
-
+        pty.sendintr.assert_called_once()
         proc.shutdown()
 
 
@@ -196,39 +172,44 @@ class TestWindowsConPtyProcess:
 # ---------------------------------------------------------------------------
 
 class TestQProcessFallback:
-    def test_start_shell(self, qapp):
-        """_QProcessFallback.start() launches the default shell via QProcess."""
+    def test_start_shell_marks_started(self, qapp):
+        """start() launches the shell AND sets _shell_started, so typed commands are not stuck in the queue."""
         proc = _QProcessFallback(os.getcwd())
         proc.start()
-
-        # The process should be in Starting or Running state after start
         assert proc._process.state() in (
             proc._process.ProcessState.Starting,
             proc._process.ProcessState.Running,
         )
-
+        assert proc._shell_started is True
         proc.shutdown()
 
     def test_write_sends_to_process(self, qapp):
-        """write() sends data to QProcess."""
         proc = _QProcessFallback(os.getcwd())
         proc.start()
-
         with patch.object(proc._process, "write") as mock_write:
             proc.write(b"test\n")
             mock_write.assert_called_with(b"test\n")
-
         proc.shutdown()
 
-    def test_write_sends_to_process(self, qapp):
-        """write() sends data to QProcess."""
+    @pytest.mark.skipif(P.IS_WINDOWS, reason="uses sleep from a POSIX shell")
+    def test_ctrl_c_stops_command_not_shell(self, qapp):
+        """Ctrl+C terminates the running command; the shell itself keeps running."""
+        import psutil
         proc = _QProcessFallback(os.getcwd())
         proc.start()
+        assert proc._process.waitForStarted(3000)
+        proc.write(b"sleep 30\n")
+        shell = psutil.Process(proc._process.processId())
+        deadline = time.time() + 3
+        while not shell.children(recursive=True) and time.time() < deadline:
+            qapp.processEvents()
+            time.sleep(0.05)
+        assert shell.children(recursive=True), "sleep never started"
 
-        with patch.object(proc._process, "write") as mock_write:
-            proc.write(b"test\n")
-            mock_write.assert_called_with(b"test\n")
+        proc.send_signal(signal.SIGINT)
 
+        assert not shell.children(recursive=True)
+        assert proc._process.state() == proc._process.ProcessState.Running
         proc.shutdown()
 
 
@@ -249,7 +230,7 @@ class TestCreatePtyBackend:
     def test_windows_with_pywinpty_chooses_conpty(self, mock_P, qapp, monkeypatch):
         """On Windows with pywinpty, factory returns _WindowsConPtyProcess."""
         mock_P.IS_WINDOWS = True
-        monkeypatch.setitem(sys.modules, 'pywinpty', MagicMock())
+        monkeypatch.setitem(sys.modules, 'winpty', MagicMock())
 
         backend = _create_pty_backend(os.getcwd())
         assert isinstance(backend, _WindowsConPtyProcess)
@@ -259,8 +240,8 @@ class TestCreatePtyBackend:
     def test_windows_without_pywinpty_chooses_fallback(self, mock_P, qapp, monkeypatch):
         """On Windows without pywinpty, factory returns _QProcessFallback."""
         mock_P.IS_WINDOWS = True
-        # Ensure pywinpty is not importable
-        monkeypatch.delitem(sys.modules, 'pywinpty', raising=False)
+        # None in sys.modules makes `import winpty` raise ImportError
+        monkeypatch.setitem(sys.modules, 'winpty', None)
 
         backend = _create_pty_backend(os.getcwd())
         assert isinstance(backend, _QProcessFallback)
@@ -359,3 +340,37 @@ def qapp():
     from PySide6.QtWidgets import QApplication
     app = QApplication.instance() or QApplication([])
     yield app
+
+# ---------------------------------------------------------------------------
+# Real Windows ConPTY (runs only on the Windows CI job / a Windows machine)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.skipif(not (P.IS_WINDOWS and os.environ.get("MEDHA_REAL_CONPTY_TEST")),
+                    reason="real ConPTY check — Windows CI only")
+def test_real_conpty_runs_command_and_ctrl_c(qapp):
+    """Spawns real cmd.exe in ConPTY: a command runs, Ctrl+C stops a long command, shell survives."""
+    proc = _create_pty_backend(os.getcwd())
+    assert isinstance(proc, _WindowsConPtyProcess), "pywinpty missing → fallback was chosen"
+    chunks = []
+    proc.ready_read.connect(lambda d: chunks.append(bytes(d)))
+    proc.start()
+
+    def wait_for(text, timeout=15):
+        end = time.time() + timeout
+        while time.time() < end:
+            qapp.processEvents()
+            if text in b"".join(chunks).decode("utf-8", "replace"):
+                return True
+            time.sleep(0.05)
+        return False
+
+    proc.write(b"echo MEDHA_OK_%OS%\r\n")
+    assert wait_for("MEDHA_OK_Windows_NT"), b"".join(chunks)[-500:]
+
+    proc.write(b"ping -n 30 127.0.0.1\r\n")
+    assert wait_for("Reply from 127.0.0.1")
+    proc.send_signal(signal.SIGINT)
+    proc.write(b"echo AFTER_%OS%\r\n")
+    assert wait_for("AFTER_Windows_NT", timeout=10), "shell did not come back after Ctrl+C"
+    assert proc._pty.isalive()
+    proc.shutdown()

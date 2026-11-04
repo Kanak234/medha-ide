@@ -19,14 +19,17 @@ FLOW:  typed line → send_input() → input_override(text) if a program runs
        (runner.write_stdin) else shell stdin → shell/program output → append_output()
 """
 
+import logging
 import os
 import signal
 
-from PySide6.QtCore import QObject, QSocketNotifier, QProcess, Signal, QTimer
+from PySide6.QtCore import QObject, QSocketNotifier, QProcess, Signal
 from PySide6.QtGui import QColor, QFontDatabase, QTextCursor
 from PySide6.QtWidgets import QLineEdit, QTextEdit, QVBoxLayout, QWidget
 
 from medha import platform_info as P
+
+logger = logging.getLogger(__name__)
 
 
 class _PtyProcess(QObject):
@@ -207,63 +210,82 @@ class _WindowsConPtyProcess(_PtyProcess):
     If pywinpty is not importable, we fall back to _QProcessFallback.
     """
 
+    # Chunks read on the background reader thread are handed to the Qt (GUI)
+    # thread through these signals — Qt queues them automatically because the
+    # receiver lives in the GUI thread. WHY: winpty's read() BLOCKS until the
+    # shell prints something, so it must never run on the GUI thread.
+    _chunk = Signal(bytes)
+    _eof = Signal()
+
     def __init__(self, workspace_path, parent=None):
         super().__init__(workspace_path, parent)
         self._pty = None
         self._process = None
-        self._notifier = None
+        self._reader = None
+        self._chunk.connect(self._on_chunk)         # reader thread → GUI thread (queued)
+        self._eof.connect(self._on_eof)             # shell exited → finished signal
 
     def start(self):
-        import pywinpty  # noqa: F401
+        # The pip package is "pywinpty" but the importable module is "winpty".
+        from winpty import PtyProcess
+        import threading
 
-        # Create a ConPTY with default size (80x24)
-        self._pty = pywinpty.PtyProcess.spawn(
+        # Real ConPTY pseudo-console, 24 rows x 80 cols (winpty takes (rows, cols)).
+        self._pty = PtyProcess.spawn(
             [os.environ.get("COMSPEC", r"C:\Windows\System32\cmd.exe"), "/Q"],
             cwd=self.workspace_path,
-            cols=80,
-            rows=24,
+            dimensions=(24, 80),
         )
         self._process = self._pty
 
-        # Set up a timer to poll for output (pywinpty doesn't integrate with Qt's event loop directly)
-        # We use a QTimer with a short interval to check for data.
-        self._timer = QTimer(self)
-        self._timer.timeout.connect(self._poll_output)
-        self._timer.start(10)  # 10 ms polling interval
+        # Daemon thread: blocks on read(), forwards every chunk to the GUI thread.
+        self._reader = threading.Thread(target=self._read_loop, name="medha-conpty-reader", daemon=True)
+        self._reader.start()
 
         self._shell_started = True
         self.ready_read.emit("[MEDHĀ Terminal] cmd.exe started\n".encode("utf-8"))
 
-    def _poll_output(self):
-        if self._pty and self._pty.isalive():
+    def _read_loop(self):
+        # Runs on the reader thread. read() returns str; EOFError means the shell closed.
+        pty = self._pty
+        while pty is not None:
             try:
-                data = self._pty.read(4096)
-                if data:
-                    self.ready_read.emit(data.encode("utf-8", errors="replace"))
+                data = pty.read(4096)
+            except EOFError:
+                break
             except Exception:
-                pass
-        else:
-            self._timer.stop()
-            self.finished.emit(0)
+                logger.exception("ConPTY read failed")
+                break
+            if data:
+                self._chunk.emit(data.encode("utf-8", errors="replace"))
+        self._eof.emit()
+
+    def _on_chunk(self, data: bytes):
+        # GUI thread: pass the shell output on to the terminal widget.
+        self.ready_read.emit(data)
+
+    def _on_eof(self):
+        # GUI thread: the shell process has ended.
+        self._shell_started = False
+        self.finished.emit(0)
 
     def write(self, data: bytes):
         if self._pty and self._pty.isalive():
             try:
                 self._pty.write(data.decode("utf-8", errors="replace"))
             except Exception:
-                pass
+                logger.exception("ConPTY write failed")
 
     def send_signal(self, sig):
-        # ConPTY doesn't have Unix signals; we send Ctrl+C as a keystroke
+        # ConPTY has no Unix signals: Ctrl+C is sent as the ^C keystroke, which the
+        # pseudo-console turns into CTRL_C_EVENT for the foreground program only.
         if sig == signal.SIGINT and self._pty and self._pty.isalive():
             try:
-                self._pty.send_control('c')
+                self._pty.sendintr()
             except Exception:
-                pass
+                logger.exception("ConPTY Ctrl+C failed")
 
     def shutdown(self):
-        if hasattr(self, '_timer') and self._timer:
-            self._timer.stop()
         if self._pty and self._pty.isalive():
             try:
                 self._pty.terminate()
@@ -294,6 +316,9 @@ class _QProcessFallback(_PtyProcess):
     def start(self):
         program, args = P.default_shell()
         self._process.start(program, args)
+        # WHY: the widget queues typed commands until _shell_started is True.
+        # Without this the fallback (no pywinpty) never ran any command.
+        self._shell_started = True
         if P.IS_WINDOWS:
             # UTF-8 code page
             self._process.write(b"chcp 65001 >nul\r\n")
@@ -307,6 +332,7 @@ class _QProcessFallback(_PtyProcess):
         self.ready_read.emit(data)
 
     def _on_finished(self, exit_code, exit_status):
+        self._shell_started = False
         self.finished.emit(exit_code)
 
     def _on_error(self, error):
@@ -317,11 +343,30 @@ class _QProcessFallback(_PtyProcess):
         self._process.write(data)
 
     def send_signal(self, sig):
-        # QProcess doesn't support sending signals to process groups on Windows
-        # On Unix we could use killpg, but we don't have the pgid easily.
-        # For the fallback, we just kill the process.
-        if self._process.state() != QProcess.ProcessState.NotRunning:
-            self._process.kill()
+        # WHAT: Ctrl+C stops the command running INSIDE the shell, not the shell.
+        # HOW: a QProcess has no pseudo-terminal, so we find the shell's child
+        # processes with psutil and terminate them; the shell itself survives
+        # and prints its next prompt. If nothing is running, Ctrl+C is a no-op.
+        if self._process.state() == QProcess.ProcessState.NotRunning:
+            return
+        try:
+            import psutil
+            children = psutil.Process(self._process.processId()).children(recursive=True)
+        except Exception:
+            logger.exception("Could not list terminal child processes")
+            return
+        for child in children:
+            try:
+                child.terminate()
+            except Exception:
+                pass  # already exited between listing and terminating
+        if children:
+            _, alive = psutil.wait_procs(children, timeout=1.0)
+            for child in alive:
+                try:
+                    child.kill()
+                except Exception:
+                    pass
 
     def shutdown(self):
         if self._process.state() != QProcess.ProcessState.NotRunning:
@@ -340,8 +385,8 @@ def _create_pty_backend(workspace_path, parent=None) -> _PtyProcess:
     """
     if P.IS_WINDOWS:
         try:
-            import pywinpty
-            _ = pywinpty  # silence pyflakes "imported but unused"
+            import winpty  # module of the "pywinpty" package
+            _ = winpty  # silence pyflakes "imported but unused"
             return _WindowsConPtyProcess(workspace_path, parent)
         except ImportError:
             # pywinpty not installed — fall back to QProcess

@@ -9,3 +9,6 @@ psutil>=7.2.0
 
 # HTTP client for Open VSX Registry API (used in extensions/registry.py)
 requests>=2.34.0
+
+# Windows real terminal (ConPTY). pip name pywinpty, import name winpty (used in terminal.py)
+pywinpty>=2.0.13; sys_platform == "win32"

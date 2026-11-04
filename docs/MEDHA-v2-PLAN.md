@@ -25,6 +25,7 @@ Release rule: fix and push all month, publish to the Store **once** at the end (
 | B8 | Medium | Closing a window with active disassembly can call a deleted QTextEdit. | `app.py` closeEvent | Stop child QProcesses before widget teardown. |
 | B9 | High | Closing an edited tab discarded unsaved work without confirmation. | `app.py` close_tab/closeEvent | Save/Discard/Cancel guard, including cancelled Save As. |
 | B10 | Medium | `ProjectExplorerWidget.__init__` doesn't call `load_workspace()`, so workspace projects aren't loaded and fallback logic creates a project with the workspace directory name. | `medha/project_manager.py` line 192 | Add `self.workspace_manager.load_workspace(workspace_path)` in `__init__`. |
+| B11 | **High** | Windows terminal never used ConPTY: code imported `pywinpty` (real module is `winpty`), wrong `spawn` args, blocking `read()` on the GUI thread, `send_control` doesn't exist; pywinpty not in build deps. Fallback never set `_shell_started` (commands stuck) and its Ctrl+C killed the shell. | `medha/terminal.py`, `requirements.txt`, spec | Fixed: `winpty` import, reader thread, `sendintr()`, fallback sets started + Ctrl+C terminates only shell children (psutil); `windows-tests.yml` runs the real-ConPTY test on windows-latest. |
 More bugs come from Track B (section 3) — append them to this table with the same columns.
 
 ## 2. Track A — New UI like VS Code / Antigravity (ChatGPT)
