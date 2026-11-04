@@ -9,20 +9,14 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import os
 import shutil
 import tempfile
 import time
 import zipfile
-from dataclasses import asdict
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
-from medha.extensions.models import (
-    ExtensionManifest,
-    InstalledExtension,
-    ExtensionClassification,
-)
+from medha.extensions.models import ExtensionManifest, InstalledExtension
 
 logger = logging.getLogger(__name__)
 

@@ -385,3 +385,12 @@ class TestSnippetIntegration:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+def test_contribution_loader_is_defined_once():
+    # A duplicate silently shadows the implementation even when behavior tests pass.
+    import ast
+    import inspect
+    from medha.extensions import contributions
+    tree = ast.parse(inspect.getsource(contributions))
+    assert sum(isinstance(node, ast.FunctionDef) and
+               node.name == "load_extension_contributions" for node in tree.body) == 1

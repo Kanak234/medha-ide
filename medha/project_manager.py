@@ -7,11 +7,8 @@ Provides QTreeView + QStandardItemModel with logical virtual folders
 
 import os
 import json
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QTreeView, QLabel, QPushButton,
-    QHeaderView, QMenu, QInputDialog, QFileDialog, QMessageBox
-)
-from PySide6.QtGui import QStandardItemModel, QStandardItem, QIcon, QColor, QFont
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QTreeView, QLabel, QMenu, QInputDialog, QFileDialog
+from PySide6.QtGui import QStandardItemModel, QStandardItem, QColor, QFont
 from PySide6.QtCore import Qt, Signal, QObject
 
 

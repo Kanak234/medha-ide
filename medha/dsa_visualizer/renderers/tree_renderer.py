@@ -3,11 +3,8 @@ MEDHĀ IDE — Non-Linear Tree & Graph DSA Renderer
 Calculates automatic hierarchical tree levels and branch line coordinates for BST, AVL, and Red-Black Trees.
 """
 
-from PySide6.QtWidgets import (
-    QGraphicsScene, QGraphicsEllipseItem, QGraphicsTextItem, QGraphicsLineItem
-)
+from PySide6.QtWidgets import QGraphicsScene
 from PySide6.QtGui import QColor, QPen, QBrush, QFont
-from PySide6.QtCore import Qt, QPointF
 
 
 class TreeDSARenderer:
@@ -85,7 +82,7 @@ class TreeDSARenderer:
             border_color = QColor("#58a6ff") if hl == "active" else QColor("#30363d")
 
             # Circle Item
-            ellipse = scene.addEllipse(x, y, 40, 40, QPen(border_color, 2), QBrush(bg_color))
+            scene.addEllipse(x, y, 40, 40, QPen(border_color, 2), QBrush(bg_color))
 
             # Label Text
             txt = scene.addText(label, QFont("Monospace", 9, QFont.Bold))

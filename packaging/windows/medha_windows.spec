@@ -6,7 +6,8 @@
 # FLOW: build_msix.ps1 → pyinstaller medha_windows.spec → dist/MEDHA/MEDHA.exe
 import os
 ROOT = os.path.abspath(os.path.join(SPECPATH, "..", ".."))
-datas = [(os.path.join(ROOT, "medha", "turbo", "runtime"), "medha/turbo/runtime"),
+datas = [(os.path.join(ROOT, "medha", "workbench.qss"), "medha"),
+         (os.path.join(ROOT, "medha", "turbo", "runtime"), "medha/turbo/runtime"),
          (os.path.join(ROOT, "medha", "turbo", "modernize_explanations.json"), "medha/turbo"),
          (os.path.join(ROOT, "examples"), "examples"),
          (os.path.join(ROOT, "docs", "assets"), "docs/assets")]

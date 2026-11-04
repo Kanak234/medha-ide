@@ -22,6 +22,8 @@ Release rule: fix and push all month, publish to the Store **once** at the end (
 | B5 | Low | 8 `except Exception: pass` hide real errors. | `grep -rn "except Exception" medha` | Log with `logging.exception` and show a status-bar message. |
 | B6 | Low | Test suite fails offline (real network call). | `tests/test_extensions_registry.py` | `@pytest.mark.network`, skipped unless `MEDHA_NETWORK_TESTS=1`. |
 | B7 | Low | 16 unused variables (pyflakes). | dsa_engine, panel.py, renderers | Remove. CI runs `pyflakes medha` and must be clean. |
+| B8 | Medium | Closing a window with active disassembly can call a deleted QTextEdit. | `app.py` closeEvent | Stop child QProcesses before widget teardown. |
+| B9 | High | Closing an edited tab discarded unsaved work without confirmation. | `app.py` close_tab/closeEvent | Save/Discard/Cancel guard, including cancelled Save As. |
 More bugs come from Track B (section 3) — append them to this table with the same columns.
 
 ## 2. Track A — New UI like VS Code / Antigravity (ChatGPT)
@@ -76,3 +78,13 @@ diagnostics, rename, format, run, debug) before the next:
 | 3.5 | Go (GoLand), Rust (RustRover) | gopls, rust-analyzer | delve, codelldb |
 | 3.6 | SQL (DataGrip) | sqls + a simple DB browser (SQLite first) | — |
 Each server is downloaded on first use (not bundled) to keep the Store package small; everything still works offline after that.
+
+## Track A implementation evidence (2026-11-05)
+
+Implemented on `v2-ui`: Track A steps 1–8, B1 and B2. Required offline/lint
+prerequisites B4/B6/B7 are included as separate commits. B8/B9 were discovered
+while exercising the UI and are fixed in this branch. B3/B5 remain Track B work.
+See [verification details](V2-UI-VERIFICATION.md) and
+[before/after screenshots](screenshots/v2/README.md). Linux checks: 106 passed,
+1 explicit network skip; pyflakes clean; 20 UI smoke tests passed. Windows/manual
+release acceptance remains pending.

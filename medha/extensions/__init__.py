@@ -94,3 +94,5 @@ __all__ = [
     "get_all_available_themes",
     "get_all_available_snippets",
 ]
+# Public re-exports remain available to extension consumers.
+__all__ += ['load_installed_manifest', 'load_theme_file', 'load_snippets_file', 'load_grammar_file', 'classify_extension', 'get_supported_contributions']

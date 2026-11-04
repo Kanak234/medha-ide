@@ -1,0 +1,38 @@
+QWidget { background: $bg; color: $fg; font-family: "Segoe UI", "DejaVu Sans"; font-size: 12px; }
+QMainWindow, QMenuBar, QStatusBar, #sideBar, #activityBar { background: $panel; }
+QMenuBar { border-bottom: 1px solid $border; padding: 3px; }
+QMenuBar::item { padding: 5px 9px; background: transparent; }
+QMenuBar::item:selected, QMenu::item:selected { background: $selection; }
+QMenu { border: 1px solid $border; padding: 5px; }
+QMenu::item { padding: 6px 24px; }
+QStatusBar { border-top: 1px solid $border; }
+QStatusBar QLabel { background: transparent; padding: 3px 8px; font-size: 11px; }
+QTabWidget::pane { border: 0; }
+QTabBar { background: $panel; }
+QTabBar::tab { background: $panel; color: $muted; padding: 9px 13px; border-right: 1px solid $border; border-top: 2px solid transparent; }
+QTabBar::tab:selected { background: $bg; color: $fg; border-top: 2px solid $accent; }
+QTabBar QToolButton { background: $panel; }
+QToolButton, QPushButton { background: $field; border: 1px solid $border; padding: 5px 9px; border-radius: 3px; }
+QPushButton:hover, QToolButton:hover { background: $selection; }
+#activityBar QToolButton { border: 0; border-left: 2px solid transparent; border-radius: 0; background: $panel; padding: 0; }
+#activityBar QToolButton:checked { border-left: 2px solid $accent; background: $bg; }
+#commandCentre { min-width: 250px; color: $muted; padding: 4px 18px; }
+QLineEdit, QComboBox { background: $field; border: 1px solid $border; padding: 6px; selection-background-color: $selection; }
+QLineEdit:focus { border: 1px solid $accent; }
+QPlainTextEdit, QTextEdit { font-size: 14px; background: $bg; color: $fg; border: none; selection-background-color: $selection; font-family: "JetBrains Mono", "Cascadia Code", "DejaVu Sans Mono"; }
+QTreeView, QListView, QTableView { background: $panel; border: none; selection-background-color: $selection; }
+QTreeView::item, QListView::item { padding: 4px; }
+QHeaderView::section { background: $panel; border: 0; padding: 6px; }
+QSplitter::handle { background: $border; width: 4px; height: 4px; }
+QScrollArea { border: none; }
+QScrollBar:vertical { background: $panel; width: 10px; }
+QScrollBar:horizontal { background: $panel; height: 10px; }
+QScrollBar::handle { background: $border; min-height: 24px; min-width: 24px; }
+QScrollBar::add-line, QScrollBar::sub-line { width: 0; height: 0; }
+QLabel#WelcomeTitle { font-size: 32px; font-weight: 600; }
+QLabel#WelcomeSubtitle { font-size: 15px; color: $muted; }
+QPushButton#welcomeLink { text-align: left; padding: 10px 14px; color: $accent; background: transparent; border: 0; }
+QPushButton#welcomeLink:hover { background: $selection; }
+QToolButton#tabClose { border: none; background: transparent; color: $muted; padding: 0; font-size: 14px; }
+QToolButton#tabClose:hover { background: $field; }
+QToolTip { background: $field; color: $fg; border: 1px solid $border; }

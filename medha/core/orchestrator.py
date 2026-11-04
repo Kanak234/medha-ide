@@ -6,8 +6,7 @@ GDB debug sessions, DSA graph snapshots, and defensive process lifecycle cleanup
 
 import os
 import sys
-import psutil
-from PySide6.QtCore import QObject, Signal, Qt
+from PySide6.QtCore import QObject, Signal
 
 
 class AntiGravityOrchestrator(QObject):

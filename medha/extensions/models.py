@@ -8,7 +8,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional, List, Dict, Any
 from enum import Enum
-import json
 
 
 class ExtensionClassification(Enum):

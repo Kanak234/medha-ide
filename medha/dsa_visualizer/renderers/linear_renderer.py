@@ -3,9 +3,7 @@ MEDHĀ IDE — Linear DSA Visual Renderer
 Renders Arrays, Vectors, Linked Lists, Doubly Linked Lists, Stacks, and Queues using QGraphicsScene.
 """
 
-from PySide6.QtWidgets import (
-    QGraphicsScene, QGraphicsRectItem, QGraphicsTextItem, QGraphicsLineItem, QGraphicsItemGroup
-)
+from PySide6.QtWidgets import QGraphicsScene
 from PySide6.QtGui import QColor, QPen, QBrush, QFont, QPolygonF
 from PySide6.QtCore import Qt, QPointF
 
@@ -36,7 +34,7 @@ class LinearDSARenderer:
             idx_txt.setPos(x_offset + 15, y_pos - 25)
 
             # Element Box
-            rect = scene.addRect(x_offset, y_pos, 60, 50, QPen(border_color, 2), QBrush(bg_color))
+            scene.addRect(x_offset, y_pos, 60, 50, QPen(border_color, 2), QBrush(bg_color))
 
             # Value label inside box
             val_txt = scene.addText(str(val), QFont("Monospace", 10, QFont.Bold))
@@ -62,7 +60,7 @@ class LinearDSARenderer:
             val = node.get("label", "")
 
             # Node Box (Data | Next)
-            rect = scene.addRect(x_offset, y_pos, 90, 50, QPen(QColor("#238636"), 2), QBrush(QColor("#0d1117")))
+            scene.addRect(x_offset, y_pos, 90, 50, QPen(QColor('#238636'), 2), QBrush(QColor('#0d1117')))
             txt = scene.addText(f"{val}", QFont("Monospace", 10, QFont.Bold))
             txt.setDefaultTextColor(QColor("#7ee787"))
             txt.setPos(x_offset + 25, y_pos + 12)
@@ -84,13 +82,13 @@ class LinearDSARenderer:
                 _, _, dx, dy = node_positions[dst]
 
                 if label == "next":
-                    line = scene.addLine(sx, sy, dx, dy, QPen(QColor("#58a6ff"), 2))
+                    scene.addLine(sx, sy, dx, dy, QPen(QColor('#58a6ff'), 2))
                     # Draw Arrow Head
                     arrow = scene.addPolygon(QPolygonF([QPointF(dx, dy), QPointF(dx - 8, dy - 5), QPointF(dx - 8, dy + 5)]))
                     arrow.setBrush(QBrush(QColor("#58a6ff")))
                     arrow.setPen(Qt.NoPen)
                 elif label == "prev":
-                    line = scene.addLine(dx, dy + 15, sx, sy + 15, QPen(QColor("#d29922"), 1.5, Qt.DashLine))
+                    scene.addLine(dx, dy + 15, sx, sy + 15, QPen(QColor('#d29922'), 1.5, Qt.DashLine))
 
         # NULL Terminator
         null_txt = scene.addText("NULL", QFont("Monospace", 9, QFont.Bold))
@@ -114,7 +112,7 @@ class LinearDSARenderer:
 
         for i, node in enumerate(snapshot.nodes):
             val = node.get("label", "")
-            rect = scene.addRect(x_pos, y_offset, 100, 35, QPen(QColor("#8957e5"), 1.5), QBrush(QColor("#161b22")))
+            scene.addRect(x_pos, y_offset, 100, 35, QPen(QColor('#8957e5'), 1.5), QBrush(QColor('#161b22')))
             txt = scene.addText(str(val), QFont("Monospace", 10, QFont.Bold))
             txt.setDefaultTextColor(QColor("#d2a8ff"))
             txt.setPos(x_pos + 35, y_offset + 5)

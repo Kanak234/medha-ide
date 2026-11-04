@@ -1,6 +1,6 @@
 import os
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QTreeView, QLabel, QHeaderView, QFileSystemModel
-from PySide6.QtCore import QDir, Signal, Qt
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QTreeView, QLabel, QFileSystemModel
+from PySide6.QtCore import Signal
 
 class ProjectExplorerWidget(QWidget):
     file_selected = Signal(str)

@@ -1,6 +1,5 @@
 import os
 import subprocess
-from pathlib import Path
 
 class GitBackend:
     def __init__(self, repo_path: str):

@@ -4,9 +4,6 @@ Extracts live Data Structure state (Arrays, Linked Lists, Trees, Graphs)
 from GDB (C/C++), sys.settrace (Python), and JDWP (Java).
 """
 
-import sys
-import re
-import os
 from PySide6.QtCore import QObject, Signal
 
 
@@ -114,7 +111,6 @@ class UniversalDSATracer(QObject):
     def parse_gdb_variables(self, variables_list):
         """Parses GDB variables output into a DSASnapshot for C/C++."""
         self.step_count += 1
-        arr_elements = []
 
         for name, val in variables_list:
             # Check for GDB Array representation: {1, 2, 3, 4}

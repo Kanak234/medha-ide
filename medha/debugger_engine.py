@@ -3,18 +3,14 @@ MEDHĀ IDE — Interactive GDB Debugger Engine & Panels
 Extends DebugSession with GUI panels:
  1. Breakpoints Panel
  2. Call Stack / Backtrace Panel
- 3. Variables & Watch Expressions Panel
+ 3. Variables && Watch Expressions Panel
 Signals UI updates for editor execution line highlighting and margin breakpoints.
 """
 
 import os
 import re
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QTabWidget, QTableWidget, QTableWidgetItem,
-    QHeaderView, QPushButton, QLineEdit, QLabel, QSplitter
-)
-from PySide6.QtGui import QColor, QFont
-from PySide6.QtCore import Qt, Signal, QObject
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QTabWidget, QTableWidget, QTableWidgetItem, QHeaderView, QPushButton, QLineEdit
+from PySide6.QtCore import Signal, QObject
 from medha.debugger import DebugSession
 
 
@@ -177,7 +173,7 @@ class GdbDebuggerPanelWidget(QWidget):
         watch_box.addWidget(btn_eval)
         var_layout.addLayout(watch_box)
 
-        self.tabs.addTab(var_widget, "Variables & Watch")
+        self.tabs.addTab(var_widget, "Variables && Watch")
 
         layout.addWidget(self.tabs)
 
