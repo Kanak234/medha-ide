@@ -1,0 +1,91 @@
+# Build and validate without releases, tags, Store uploads or signing changes.
+# Read-only repository permissions keep this distinct from windows-msix.yml.
+name: Windows MSIX validation (artifact only)
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/windows-artifact.yml"
+permissions:
+  contents: read
+jobs:
+  msix:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install build dependencies
+        run: python -m pip install -r requirements.txt pyinstaller pytest pyflakes
+      - name: Windows offline tests and real ConPTY
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: offscreen
+          MEDHA_REAL_CONPTY_TEST: "1"
+        run: |
+          python -m pyflakes medha
+          if ($LASTEXITCODE -ne 0) { throw "Lint failed" }
+          python -m pytest -q -rs
+          if ($LASTEXITCODE -ne 0) { throw "Windows tests failed" }
+      - name: Verify source GUI startup
+        shell: pwsh
+        run: |
+          $env:MEDHA_SMOKE_RESULT = Join-Path $env:RUNNER_TEMP "source-gui.json"
+          python -m medha --smoke-gui
+          if ($LASTEXITCODE -ne 0) { throw "Source GUI startup failed" }
+      - name: Download offline toolchains (GCC, JDK 25, Python) + checksums
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: packaging\windows\fetch_toolchains.ps1
+      - name: Build MSIX (includes MEDHA.exe --selftest with bundled GCC)
+        shell: pwsh
+        run: packaging\windows\build_msix.ps1
+      - name: Frozen Windows acceptance
+        shell: pwsh
+        run: |
+          $env:MEDHA_ACCEPTANCE_DIR = "$pwd/dist/frozen-acceptance"
+          $p = Start-Process "$pwd/dist/MEDHA/MEDHA.exe" -ArgumentList "--acceptance" -PassThru
+          if (-not $p.WaitForExit(180000)) { $p.Kill(); throw "Frozen acceptance timeout" }
+          if ($p.ExitCode -ne 0) { throw "Frozen acceptance failed" }
+          $result = Get-Content "$env:MEDHA_ACCEPTANCE_DIR/results.json" -Raw | ConvertFrom-Json
+          if ($result.status -ne "PASS") { throw "Frozen acceptance did not pass" }
+          Remove-Item Env:MEDHA_ACCEPTANCE_DIR
+      - name: Source Windows interactive acceptance with bundled GCC
+        shell: pwsh
+        run: |
+          $env:PATH = "$pwd/toolchains/mingw64/bin;" + $env:PATH
+          python tools/windows_acceptance.py
+          if ($LASTEXITCODE -ne 0) { throw "Windows acceptance failed" }
+      - name: Collect startup log
+        if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          $log = Join-Path $env:LOCALAPPDATA "MEDHA\startup.log"
+          if (Test-Path $log) { Copy-Item $log dist/startup.log }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: medha-windows-validation
+          path: |
+            dist/*.msix
+            dist/*.zip
+            dist/gui-smoke.*
+            dist/startup.log
+            dist/selftest.*.log
+            dist/acceptance/
+            toolchains/MANIFEST.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-evidence
+          path: |
+            dist/gui-smoke.*
+            dist/startup.log
+            dist/selftest.*.log
+            dist/acceptance/
+            dist/frozen-acceptance/

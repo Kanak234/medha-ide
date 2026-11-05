@@ -59,6 +59,9 @@ def selftest() -> int:
 
 
 def main():
+    if "--acceptance" in sys.argv:
+        from medha.release_acceptance import main as acceptance
+        return acceptance()
     if "--smoke-gui" in sys.argv:
         from medha.smoke_gui import run
         return run()

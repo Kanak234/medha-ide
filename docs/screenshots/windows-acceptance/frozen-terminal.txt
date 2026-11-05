@@ -1,0 +1,9 @@
+[MEDHĀ Terminal] cmd.exe started
+Microsoft Windows [Version 10.0.26100.33674]
+(c) Microsoft Corporation. All rights reserved.
+
+C:\Users\runneradmin\Documents\MEDHA Projects>echo MEDHA_SMOKE_^O^K
+echo MEDHA_SMOKE_^O^K
+MEDHA_SMOKE_OK
+
+C:\Users\runneradmin\Documents\MEDHA Projects>

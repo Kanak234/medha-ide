@@ -6,6 +6,7 @@
 # FLOW: build_msix.ps1 → pyinstaller medha_windows.spec → dist/MEDHA/MEDHA.exe
 import ast
 import os
+from PyInstaller.utils.hooks import collect_dynamic_libs
 from PyInstaller.utils.win32.versioninfo import VSVersionInfo, FixedFileInfo, StringFileInfo, StringTable, StringStruct, VarFileInfo, VarStruct
 ROOT = os.path.abspath(os.path.join(SPECPATH, "..", ".."))
 # Read the package version without importing GUI code during the Windows build.
@@ -34,7 +35,11 @@ datas = [(os.path.join(ROOT, "medha", "workbench.qss"), "medha"),
          (os.path.join(ROOT, "docs", "assets"), "docs/assets")]
 if os.path.isdir(os.path.join(ROOT, "toolchains")):
     datas.append((os.path.join(ROOT, "toolchains"), "toolchains"))
-a = Analysis([os.path.join(ROOT, "packaging", "windows", "medha_entry.py")], pathex=[ROOT], datas=datas,
+# pywinpty loads its console host at runtime. Import analysis finds the Python
+# extension but cannot discover OpenConsole.exe or the legacy winpty agent.
+# Preserve all companion binaries beside the extension inside winpty/.
+pty_binaries = collect_dynamic_libs("winpty", search_patterns=["*.dll", "*.exe"])
+a = Analysis([os.path.join(ROOT, "packaging", "windows", "medha_entry.py")], pathex=[ROOT], datas=datas, binaries=pty_binaries,
              hiddenimports=["medha.app", "PySide6.QtSvg", "winpty", "psutil"], excludes=["tkinter"])
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="MEDHA", console=False, version=version_info,

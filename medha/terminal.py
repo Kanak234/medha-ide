@@ -28,6 +28,7 @@ from PySide6.QtGui import QColor, QFontDatabase, QTextCursor
 from PySide6.QtWidgets import QLineEdit, QTextEdit, QVBoxLayout, QWidget
 
 from medha import platform_info as P
+from medha.terminal_text import TerminalText
 
 logger = logging.getLogger(__name__)
 
@@ -237,6 +238,7 @@ class _WindowsConPtyProcess(_PtyProcess):
             dimensions=(24, 80),
         )
         self._process = self._pty
+        logger.warning("ConPTY started pid=%s cwd=%s", self._pty.pid, self.workspace_path)
 
         # Daemon thread: blocks on read(), forwards every chunk to the GUI thread.
         self._reader = threading.Thread(target=self._read_loop, name="medha-conpty-reader", daemon=True)
@@ -252,6 +254,7 @@ class _WindowsConPtyProcess(_PtyProcess):
             try:
                 data = pty.read(4096)
             except EOFError:
+                logger.warning("ConPTY EOF: child_alive=%s exitstatus=%s", pty.isalive(), pty.exitstatus)
                 break
             except Exception:
                 logger.exception("ConPTY read failed")
@@ -286,6 +289,7 @@ class _WindowsConPtyProcess(_PtyProcess):
                 logger.exception("ConPTY Ctrl+C failed")
 
     def shutdown(self):
+        logger.warning("ConPTY shutdown requested", stack_info=True)
         if self._pty and self._pty.isalive():
             try:
                 self._pty.terminate()
@@ -411,6 +415,7 @@ class IntegratedTerminalWidget(QWidget):
         super().__init__(parent)
         self.workspace_path = workspace_path or os.getcwd()
         self._pending_input = []
+        self._terminal_text = TerminalText()
         # set by app.py while a Run is active: callable(str) -> bool (True = consumed)
         self.input_override = None
 
@@ -472,7 +477,7 @@ class IntegratedTerminalWidget(QWidget):
         return data.decode("utf-8", errors="replace")
 
     def _on_pty_output(self, data: bytes):
-        self.append_output(self._decode(data))
+        self.append_output(self._terminal_text.feed(self._decode(data)))
 
     def append_output(self, text, color=None):
         if not text:
