@@ -1,5 +1,5 @@
 {
-  "scope": "Windows source GUI with bundled toolchains",
+  "scope": "Windows source GUI",
   "passed": [
     "ConPTY prompt and dir",
     "ping Ctrl+C and shell survives",

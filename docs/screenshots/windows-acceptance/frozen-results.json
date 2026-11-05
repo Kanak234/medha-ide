@@ -1,0 +1,16 @@
+{
+  "scope": "Frozen Windows GUI",
+  "passed": [
+    "ConPTY prompt and dir",
+    "ping Ctrl+C and shell survives",
+    "C build/run and scanf through terminal input",
+    "Turbo C graphics produced a decoded framebuffer"
+  ],
+  "pending": [
+    "MSIX install/uninstall",
+    "installed-package interactive acceptance",
+    "extension install/uninstall",
+    "manual Windows desktop review"
+  ],
+  "status": "PASS"
+}

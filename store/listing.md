@@ -38,6 +38,5 @@ Copy only the bullets below into Partner Center (English; under 1,500 characters
 - Improve offline test reliability and code quality.
 <!-- WHATS_NEW_END -->
 
-Preparation only: B3 terminal support is pending on `v2-bugs` and is not claimed
-in this copy. Review package version ordering (main previously used 2.0.1), merge
-and verify the terminal work, and complete Windows/manual checks before upload.
+B11/B12 and packaged terminal fixes are included in the 2.0.2 candidate.
+See `docs/WINDOWS-ACCEPTANCE.md` for verified checks and installation/manual gaps.

@@ -1,71 +1,61 @@
 # Windows release acceptance — 2026-11-05
 
-**Do not submit this build yet.** The build succeeds, but frozen terminal evidence
-and the existing Store version block acceptance. No release/tag/Store submission
-was created. The publishing `windows-msix.yml` workflow was not dispatched.
+## Verified 2.0.2 candidate
 
-## Provenance
-
-- Main source: `d71238e4e9086863ce35064369829a4b5a1b2421` (B11 + B12).
-- Validation branch commit: `63492545728552b1c78e4dba9da0c8017cab9863`.
-- [Artifact-only Windows run](https://github.com/Kanak234/medha-ide/actions/runs/41924745789)
-  completed successfully on windows-latest, Python 3.13.17.
-- [MSIX/portable ZIP and evidence artifact](https://github.com/Kanak234/medha-ide/actions/runs/41924745789/artifacts/13369462001):
-  `medha-windows-validation`, 1,049,625,932 bytes.
-  Archive SHA256: `d8ec3e2d4f1363ba6559750d77f1bd8b1b4f5338d211989f2878de8d6d63cdc6`.
-  This is the Actions archive digest, not the individual MSIX digest.
-- Built with `packaging/windows/build_msix.ps1`: `MEDHA-2.0.0.msix` and
-  `MEDHA-2.0.0-portable.zip`. No signing files were changed.
-- Small evidence entries were extracted from the downloaded archive prefix and
-  inspected. The slow full local download was stopped; the full artifact remains
-  on GitHub. Package payload/manifest has not been independently inspected locally.
-
-## Results and limits
+[Artifact-only run 42031151597](https://github.com/Kanak234/medha-ide/actions/runs/42031151597)
+passed on Windows for commit `398809d6203e0e51e2a531b00b7e17372fffcf5c`.
+It builds through `packaging/windows/build_msix.ps1` and publishes no GitHub release.
+The publishing `windows-msix.yml` workflow was not dispatched.
 
 | Check | Result |
 |---|---|
-| Windows offline suite + pyflakes | 212 passed, 6 skipped; lint clean |
-| Existing main Windows CI on Python 3.12 | 212 passed, 6 skipped, run 41922910693 |
-| Source GUI startup | Passed |
-| Frozen GUI startup from system working directory | Window/Welcome capture passed; terminal issue below |
-| Frozen C compiler selftest | Build script step succeeded; individual stdout not independently inspected |
-| Source ConPTY `dir`, continuous ping, Ctrl+C, then another `dir` | Passed, real Windows shell |
-| Source C build/run with terminal `scanf` input | Passed, input 21 produced ANSWER=42 |
-| Source Turbo C graphics example | Passed, decoded framebuffer; screenshot shows drawing |
-| MSIX install, installed launch/interaction, uninstall | Not performed |
-| Installed C scanf / Turbo graphics / terminal Ctrl+C | Not performed |
-| Manual breakpoint debugging, DSA stepping, save/close/reopen project | Not performed in this Windows acceptance run |
-| Extension install/uninstall | Not performed; offline suite does not establish this |
-| Linux regression | 216 passed, 2 skipped; lint clean; 20 UI smoke tests passed |
+| Windows offline tests and real ConPTY, Python 3.13 | 214 passed, 6 skipped; pyflakes clean |
+| Separate Windows Python 3.12 suite | 214 passed, 6 skipped; run 42031151656 |
+| Frozen GUI launch from Windows system directory | PASS; Welcome visible and shell command produced MEDHA_SMOKE_OK |
+| Frozen bundled GCC compiler selftest | PASS, SUM=5050 |
+| Frozen ConPTY dir, continuous ping, Ctrl+C, another dir | PASS; shell survives |
+| Frozen C build/run with scanf through terminal | PASS; input 21 produces ANSWER=42 |
+| Frozen Turbo C graphics | PASS; real decoded framebuffer and screenshot |
+| Same terminal/C/Turbo checks in source GUI | PASS |
+| Linux regression | 218 passed, 2 skipped; pyflakes clean; 20 UI smoke tests passed |
+| MSIX installation, installed launch, uninstall | Not performed |
+| Installed-package terminal/C/Turbo interaction | Not performed; frozen executable was tested before packaging |
+| Manual Windows breakpoint, DSA stepping, save/close/reopen | Not performed in this acceptance run |
+| Extension install/uninstall | Not performed |
 
-Source acceptance uses the real app and bundled GCC, but is not equivalent to an
-installed MSIX test. No interactive Windows desktop was connected to this chat.
-See [source results](screenshots/windows-acceptance/source-results.json) and
-[frozen GUI JSON](screenshots/windows-acceptance/frozen-gui.json).
+No connected Windows desktop or signing certificate was available. No signing
+files or Windows trust/security settings were changed. GitHub Windows GUI tests
+are not a claim that the unperformed installed/manual checks passed.
 
-## B13: frozen terminal evidence requires investigation
+## Packaging fixes proven by the run
 
-The screenshot is captured by `medha/smoke_gui.py` **before** `window.close()`.
-It shows visible terminal control sequences and `[shell exited with code 0]`.
-The smoke test only asserts window visibility and Welcome; its PASS does not
-assert terminal health. Source ConPTY acceptance passed, so do not describe B11
-as wholly broken or this frozen behavior as resolved without further evidence.
-Root cause of the frozen shell exit has not been established.
+B13: pywinpty imports alone omitted its runtime console hosts. Explicit collection
+of the companion DLLs and executables, including `winpty/OpenConsole.exe`, fixes
+the frozen shell exit. Hidden-console mode did not help and was reverted. The app
+remains a windowed executable. Streaming ANSI/OSC filtering removes raw terminal
+control sequences from the QTextEdit display; this is not a full VT emulator.
 
-![Frozen Welcome with terminal issue](screenshots/windows-acceptance/frozen-welcome.png)
+B14: the build now waits for the compiler selftest process and verifies its exit
+code and PASS marker. UTF-8 stdout/stderr prevent the MEDHĀ text from raising a
+cp1252 encoding error. The GUI smoke now requires live command output, not only
+a visible window. Lifecycle evidence shows shell shutdown after checks at close.
 
-The source Turbo check captures an actual decoded graphics frame. Runner display
-dimensions constrain this evidence image; it is not a replacement Store screenshot.
+## Evidence
 
-![Source Windows Turbo graphics](screenshots/windows-acceptance/source-turbo.png)
+- [Frozen results](screenshots/windows-acceptance/frozen-results.json)
+- [Source results](screenshots/windows-acceptance/source-results.json)
+- [Frozen startup JSON](screenshots/windows-acceptance/frozen-gui.json)
+- [Startup terminal text](screenshots/windows-acceptance/frozen-terminal.txt)
+- [Artifact archive](https://github.com/Kanak234/medha-ide/actions/runs/42031151597/artifacts/13415918858)
+  (`medha-windows-validation`, MSIX plus portable ZIP).
 
-## Store version gate
+![Frozen Welcome and healthy terminal](screenshots/windows-acceptance/frozen-welcome.png)
+![Frozen Turbo graphics](screenshots/windows-acceptance/frozen-turbo.png)
 
-Partner Center was inspected read-only. The live submission's Packages page
-shows **MEDHA-2.0.1.msix, v2.0.1.0, X64**. The requested 2.0.0 build is lower than
-that existing package version. Version selection must be resolved before upload;
-no silent version bump or new submission was made. User decision is pending.
+## Store preparation
 
-Release requires resolving B13, verifying the installed package, addressing the
-remaining manual checklist and choosing a Store-compatible version. Keep existing
-Store copy/screenshots unchanged until those gates are satisfied.
+The live Store package is 2.0.1.0, so this update uses **2.0.2 / 2.0.2.0**.
+Partner Center Submission 2 has the WHATS_NEW block from `store/listing.md` and
+seven screenshots saved. At report time the new binary has not been uploaded
+and certification has not been submitted. The existing draft inherits 2.0.1;
+it must be replaced with the validated 2.0.2 MSIX before submission.
