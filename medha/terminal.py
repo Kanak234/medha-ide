@@ -238,6 +238,7 @@ class _WindowsConPtyProcess(_PtyProcess):
             dimensions=(24, 80),
         )
         self._process = self._pty
+        logger.warning("ConPTY started pid=%s cwd=%s", self._pty.pid, self.workspace_path)
 
         # Daemon thread: blocks on read(), forwards every chunk to the GUI thread.
         self._reader = threading.Thread(target=self._read_loop, name="medha-conpty-reader", daemon=True)
@@ -288,6 +289,7 @@ class _WindowsConPtyProcess(_PtyProcess):
                 logger.exception("ConPTY Ctrl+C failed")
 
     def shutdown(self):
+        logger.warning("ConPTY shutdown requested", stack_info=True)
         if self._pty and self._pty.isalive():
             try:
                 self._pty.terminate()

@@ -13,12 +13,14 @@ def run():
     app = QApplication(sys.argv)
     window = MedhaMainWindow(workspace_path=os.getcwd())
     window.show()
+    # Preserve terminal text in CI even when startup fails before acceptance.
     result = Path(os.environ["MEDHA_SMOKE_RESULT"])
 
     QTimer.singleShot(2000, lambda: window.terminal.execute_command("echo MEDHA_SMOKE_^O^K" if os.name == "nt" else "printf MEDHA_SMOKE_OK"))
 
     def verify():
         try:
+            result.with_suffix(".terminal.txt").write_text(window.terminal.output_edit.toPlainText(), encoding="utf-8")
             assert window.isVisible(), "Main window is not visible"
             assert window.tab_widget.count() > 0, "Welcome editor did not open"
             assert window.tab_widget.tabText(0) == "Welcome", "Welcome missing"
