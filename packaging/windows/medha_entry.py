@@ -1,4 +1,4 @@
-# Windowed PyInstaller apps have no console. Keep startup exceptions in user data.
+# Keep startup exceptions in user data, including launches without standard streams.
 import sys
 import traceback
 from medha.platform_info import user_data_dir

@@ -37,6 +37,9 @@ if os.path.isdir(os.path.join(ROOT, "toolchains")):
 a = Analysis([os.path.join(ROOT, "packaging", "windows", "medha_entry.py")], pathex=[ROOT], datas=datas,
              hiddenimports=["medha.app", "PySide6.QtSvg", "winpty", "psutil"], excludes=["tkinter"])
 pyz = PYZ(a.pure)
-exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="MEDHA", console=False, version=version_info,
+# ConPTY survives in console-hosted Python but exited in the windowed frozen
+# build. Keep a console host for process semantics, hidden before the GUI opens.
+# PyInstaller hides only consoles it owns, preserving an existing user console.
+exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="MEDHA", console=True, hide_console="hide-early", version=version_info,
           icon=os.path.join(ROOT, "packaging", "windows", "medha.ico") if os.path.exists(os.path.join(ROOT, "packaging", "windows", "medha.ico")) else None)
 coll = COLLECT(exe, a.binaries, a.datas, name="MEDHA")
