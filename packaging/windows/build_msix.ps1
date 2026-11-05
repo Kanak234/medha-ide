@@ -28,7 +28,13 @@ Remove-Item -Recurse -Force $layout -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force "$layout\Assets" | Out-Null
 Run "icons" { python packaging\windows\make_icons.py docs\assets\logo-mark.svg "$layout\Assets" }
 Run "PyInstaller build" { python -m PyInstaller --noconfirm --distpath dist packaging\windows\medha_windows.spec }
-Run "MEDHA.exe --selftest" { & dist\MEDHA\MEDHA.exe --selftest }
+# Windowed executables can return control to PowerShell before exiting. Await
+# the real process so selftest failure cannot pass or overlap the GUI test.
+$selftest = Start-Process -FilePath "$root\dist\MEDHA\MEDHA.exe" -ArgumentList "--selftest" -PassThru -RedirectStandardOutput "$root\dist\selftest.stdout.log" -RedirectStandardError "$root\dist\selftest.stderr.log"
+if (-not $selftest.WaitForExit(180000)) { $selftest.Kill(); throw "Compiler selftest timed out" }
+Get-Content "$root\dist\selftest.stdout.log", "$root\dist\selftest.stderr.log"
+if ($selftest.ExitCode -ne 0) { throw "Compiler selftest failed (exit $($selftest.ExitCode))" }
+if (-not (Select-String -Path "$root\dist\selftest.stdout.log" -Pattern "SELFTEST PASS" -Quiet)) { throw "Compiler selftest did not report PASS" }
 # A compiler self-test does not import or construct the main window. Test the
 # windowed frozen executable too, from a system directory (Store-like launch).
 $env:MEDHA_SMOKE_RESULT = Join-Path $root "dist\gui-smoke.json"
